@@ -7,18 +7,8 @@ import (
 	"net/http"
 )
 
-//Сервер должен быть доступен по адресу http://localhost:8080 и предоставлять два эндпоинта:
-//Эндпоинт с методом POST и путём /. Сервер принимает в теле запроса строку URL как text/plain
-//и возвращает ответ с кодом 201 и сокращённым URL как text/plain.
-
-//Эндпоинт с методом GET и путём /{id}, где id — идентификатор сокращённого URL (например, /EwHXdJfB).
-//	В случае успешной обработки запроса сервер возвращает ответ с кодом 307 и оригинальным URL в
-//HTTP-заголовке Location.
-
-//На любой некорректный запрос сервер должен возвращать ответ с кодом 400.
-
-var originalUrl = ""
-var shortUrl = "http://localhost:8080/EwHXdJfB "
+var originalURL = ""
+var shortURL = "http://localhost:8080/EwHXdJfB "
 
 func main() {
 	mux := http.NewServeMux()
@@ -49,7 +39,7 @@ func postHandler(w http.ResponseWriter, req *http.Request) {
 	// устанавливаем код 201
 	w.WriteHeader(http.StatusCreated)
 	// пишем тело ответа
-	w.Write([]byte(shortUrl))
+	w.Write([]byte(shortURL))
 }
 
 func getHandler(w http.ResponseWriter, req *http.Request) {
@@ -67,7 +57,7 @@ func getHandler(w http.ResponseWriter, req *http.Request) {
 		body += fmt.Sprintf("%s: %v\r\n", k, v)
 	}
 	// устанавливаем заголовок Location
-	w.Header().Set("Location", originalUrl)
+	w.Header().Set("Location", originalURL)
 	// устанавливаем код 307
 	w.WriteHeader(http.StatusTemporaryRedirect)
 	// пишем тело ответа
