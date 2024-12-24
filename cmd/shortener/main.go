@@ -1,18 +1,18 @@
 package main
 
 import (
-	"fmt"
+	"crypto/rand"
+	"encoding/hex"
 	"io"
 	"log"
 	"net/http"
 )
 
-var originalURL = ""
-var shortURL = "http://localhost:8080/EwHXdJfB "
+var storeURL = make(map[string]string)
 
 func main() {
 	mux := http.NewServeMux()
-	mux.HandleFunc(`/`, postHandler)
+	mux.HandleFunc(`/`, postHandler(storeURL))
 	mux.HandleFunc(`/{id}`, getHandler)
 
 	err := http.ListenAndServe(`:8080`, mux)
@@ -21,25 +21,39 @@ func main() {
 	}
 }
 
-func postHandler(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		http.Error(w, "Only POST requests are allowed", http.StatusBadRequest)
-		return
-	}
+func postHandler(storeURL map[string]string) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		var shortURL string
 
-	body, err := io.ReadAll(req.Body)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	fmt.Println("Request Body:", string(body))
-	defer req.Body.Close()
+		if req.Method != http.MethodPost {
+			http.Error(w, "Only POST requests are allowed", http.StatusBadRequest)
+			return
+		}
 
-	// устанавливаем заголовок Content-Type
-	w.Header().Set("Content-Type", "text/plain")
-	// устанавливаем код 201
-	w.WriteHeader(http.StatusCreated)
-	// пишем тело ответа
-	w.Write([]byte(shortURL))
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		originalURL := string(body)
+		if originalURL == "" {
+			http.Error(w, "URL is empty", http.StatusBadRequest)
+			return
+		}
+		defer req.Body.Close()
+
+		generatedID := generateID()
+		storeURL[generatedID] = originalURL
+
+		shortURL = "http://localhost:8080/" + generatedID
+
+		// устанавливаем заголовок Content-Type
+		w.Header().Set("Content-Type", "text/plain")
+		// устанавливаем код 201
+		w.WriteHeader(http.StatusCreated)
+		// пишем тело ответа
+		w.Write([]byte(shortURL))
+	}
 }
 
 func getHandler(w http.ResponseWriter, req *http.Request) {
@@ -48,18 +62,18 @@ func getHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var body string
-	if err := req.ParseForm(); err != nil {
-		w.Write([]byte(err.Error()))
-		return
-	}
-	for k, v := range req.Form {
-		body += fmt.Sprintf("%s: %v\r\n", k, v)
-	}
+	var path = req.URL.Path
+	var id = path[1:]
+	var originalURL = storeURL[id]
+
 	// устанавливаем заголовок Location
 	w.Header().Set("Location", originalURL)
 	// устанавливаем код 307
 	w.WriteHeader(http.StatusTemporaryRedirect)
-	// пишем тело ответа
-	w.Write([]byte(body))
+}
+
+func generateID() string {
+	b := make([]byte, 4)
+	rand.Read(b)
+	return hex.EncodeToString(b)
 }
