@@ -122,6 +122,7 @@ func Test_getHandler(t *testing.T) {
 			getHandler(rec, req)
 
 			res := rec.Result()
+			defer res.Body.Close()
 
 			assert.Equal(t, test.want.code, res.StatusCode)
 			assert.Equal(t, test.want.contentType, res.Header.Get("Content-Type"))
