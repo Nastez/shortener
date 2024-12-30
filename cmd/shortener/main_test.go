@@ -78,6 +78,7 @@ func Test_postHandler(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			resp, _ := testRequest(t, ts, test.method, "/", strings.NewReader(test.body))
+			defer resp.Body.Close()
 			assert.Equal(t, test.want.code, resp.StatusCode)
 			assert.Equal(t, test.want.contentType, resp.Header.Get("Content-Type"))
 		})
@@ -128,6 +129,7 @@ func Test_getHandler(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			resp, _ := testRequest(t, ts, test.method, "/{id}", nil)
+			defer resp.Body.Close()
 			assert.Equal(t, test.want.code, resp.StatusCode)
 			assert.Equal(t, test.want.contentType, resp.Header.Get("Content-Type"))
 			assert.Equal(t, test.want.header, resp.Header.Get("Location"))
