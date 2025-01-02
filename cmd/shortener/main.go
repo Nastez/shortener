@@ -25,16 +25,14 @@ func main() {
 }
 
 func run() error {
-	var flags = config.InitFlags()
-
-	fmt.Println("Running server on", flags.FlagRunAddr)
-	fmt.Println("Running server on", flags.FlagBaseAddr)
+	fmt.Println("Running server on", config.FlagRunAddr)
+	fmt.Println("Running server on", config.FlagBaseAddr)
 
 	r := chi.NewRouter()
 
-	r.Mount("/", ShortenerRoutes(flags.FlagBaseAddr))
+	r.Mount("/", ShortenerRoutes(config.FlagBaseAddr))
 
-	return http.ListenAndServe(flags.FlagRunAddr, r)
+	return http.ListenAndServe(config.FlagRunAddr, r)
 }
 
 func ShortenerRoutes(baseAddr string) chi.Router {
