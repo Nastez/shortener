@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/Nastez/shortener/config"
 	"github.com/Nastez/shortener/utils"
@@ -32,7 +33,7 @@ func run() error {
 
 	r.Mount("/", ShortenerRoutes(config.FlagBaseAddr))
 
-	return http.ListenAndServe(config.FlagRunAddr, r)
+	return http.ListenAndServe(":"+strconv.Itoa(config.FlagRunAddr), r)
 }
 
 func ShortenerRoutes(baseAddr string) chi.Router {
@@ -98,6 +99,7 @@ func (s ShortenerHandler) getHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	var originalURL = storeURL[urlID]
+	fmt.Println("originalURL", originalURL)
 
 	// устанавливаем заголовок Location
 	w.Header().Set("Location", originalURL)
