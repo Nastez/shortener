@@ -5,20 +5,17 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
+	"strings"
 )
 
-var invalidPort string
-
-var FlagRunAddr int
+var FlagRunAddr string
 var FlagBaseAddr string
 
 // ParseFlags обрабатывает аргументы командной строки
 // и сохраняет их значения в соответствующих переменных
 func ParseFlags() {
-
-	// регистрируем переменную flagRunAddr
-	// как аргумент -a со значением :8080 по умолчанию
-	flag.IntVar(&FlagRunAddr, "a", 8080, "address and port to run server")
+	flag.StringVar(&FlagRunAddr, "a", "localhost:8080", "address and port to run server")
 	flag.StringVar(&FlagBaseAddr, "b", "http://localhost:8080/", "base address before a short URL")
 	// парсим переданные серверу аргументы в зарегистрированные переменные
 	flag.Parse()
@@ -27,11 +24,22 @@ func ParseFlags() {
 		fmt.Fprintf(os.Stderr, "Invalid base address: %s (must have format http://localhost:8080/)\n", FlagBaseAddr)
 		os.Exit(1)
 	}
-	if !validatePort(FlagRunAddr) {
-		log.Fatalf("Invalid port number: %d", FlagRunAddr)
+
+	port := splitRunAddr(FlagRunAddr)
+
+	if !validatePort(port) {
+		log.Fatalf("Invalid port number: %s", port)
 	}
 }
 
-func validatePort(port int) bool {
-	return port > 0 && port <= 65535
+func validatePort(port string) bool {
+	match, _ := regexp.MatchString(`^[0-9]+$`, port)
+	return match
+}
+
+func splitRunAddr(runAddr string) string {
+	splittedRunAddr := strings.Split(runAddr, ":")
+	port := splittedRunAddr[1]
+
+	return port
 }

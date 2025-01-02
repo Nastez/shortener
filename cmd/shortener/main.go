@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/Nastez/shortener/config"
 	"github.com/Nastez/shortener/utils"
@@ -33,7 +32,7 @@ func run() error {
 
 	r.Mount("/", ShortenerRoutes(config.FlagBaseAddr))
 
-	return http.ListenAndServe(":"+strconv.Itoa(config.FlagRunAddr), r)
+	return http.ListenAndServe(config.FlagRunAddr, r)
 }
 
 func ShortenerRoutes(baseAddr string) chi.Router {
