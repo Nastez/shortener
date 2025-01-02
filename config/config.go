@@ -1,6 +1,10 @@
 package config
 
-import "flag"
+import (
+	"flag"
+	"fmt"
+	"os"
+)
 
 var FlagRunAddr string
 var FlagBaseAddr string
@@ -14,4 +18,9 @@ func ParseFlags() {
 	flag.StringVar(&FlagBaseAddr, "b", "http://localhost:8080/", "base address before a short URL")
 	// парсим переданные серверу аргументы в зарегистрированные переменные
 	flag.Parse()
+
+	if FlagBaseAddr == "http://localhost:" || FlagBaseAddr == "http://localhost:/" {
+		fmt.Fprintf(os.Stderr, "Invalid base address: %s (must have format http://localhost:8080/)\n", FlagBaseAddr)
+		os.Exit(1)
+	}
 }
