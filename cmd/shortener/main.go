@@ -11,6 +11,17 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+//Задание по треку «Сервис сокращения URL»
+
+//Добавьте возможность конфигурировать сервис с помощью переменных окружения:
+//Адрес запуска HTTP-сервера — с помощью переменной SERVER_ADDRESS.
+//Базовый адрес результирующего сокращённого URL — с помощью переменной BASE_URL.
+
+//Приоритет параметров сервера должен быть таким:
+//Если указана переменная окружения, то используется она.
+//Если нет переменной окружения, но есть аргумент командной строки (флаг), то используется он.
+//Если нет ни переменной окружения, ни флага, то используется значение по умолчанию.
+
 var storeURL = make(map[string]string)
 
 type ShortenerHandler struct{}
@@ -28,10 +39,13 @@ func run() error {
 
 	r.Mount("/", ShortenerRoutes(config.FlagBaseAddr))
 
-	return http.ListenAndServe(":"+config.PortTest, r)
+	return http.ListenAndServe(":"+config.Port, r)
 }
 
 func ShortenerRoutes(baseAddr string) chi.Router {
+	fmt.Println("Running server on", config.FlagRunAddr)
+	fmt.Println("Running server on", config.FlagBaseAddr)
+
 	r := chi.NewRouter()
 	shortenerHandler := ShortenerHandler{}
 
