@@ -33,8 +33,6 @@ func ParseFlags() {
 	}
 
 	PortTest = port
-
-	fmt.Println("portTestTEST", PortTest)
 }
 
 func validatePort(port string) bool {

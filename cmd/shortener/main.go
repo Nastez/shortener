@@ -24,14 +24,10 @@ func main() {
 }
 
 func run() error {
-	fmt.Println("Running server on", config.FlagRunAddr)
-	fmt.Println("Running server on", config.FlagBaseAddr)
-
 	r := chi.NewRouter()
 
 	r.Mount("/", ShortenerRoutes(config.FlagBaseAddr))
 
-	fmt.Println("portTestik", config.PortTest)
 	return http.ListenAndServe(":"+config.PortTest, r)
 }
 
@@ -65,13 +61,6 @@ func (s ShortenerHandler) postHandler(storeURL map[string]string, baseAddr strin
 			return
 		}
 
-		fmt.Println("req body is:", string(body))
-		fmt.Println("req.URL.Path is:", req.URL.Path)
-		fmt.Println("req.URL.RawQuery is:", req.URL.RawQuery)
-		fmt.Println("req.Host is:", req.Host)
-		fmt.Println("req.URL.Scheme is:", req.URL.Scheme)
-		fmt.Println("req.URL.RequestURI() is:", req.URL.RequestURI())
-
 		defer req.Body.Close()
 
 		generatedID := utils.GenerateID()
@@ -81,10 +70,8 @@ func (s ShortenerHandler) postHandler(storeURL map[string]string, baseAddr strin
 			http.Error(w, "port is empty", http.StatusBadRequest)
 			return
 		}
-		fmt.Println("base addr:", baseAddr)
 
 		shortURL = baseAddr + "/" + generatedID
-		fmt.Println("shortURL is:", shortURL)
 
 		// устанавливаем заголовок Content-Type
 		w.Header().Set("Content-Type", "text/plain")
