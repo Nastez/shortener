@@ -69,6 +69,11 @@ func (s ShortenerHandler) postHandler(storeURL map[string]string, baseAddr strin
 		generatedID := generateID()
 		storeURL[generatedID] = originalURL
 
+		if baseAddr == "http://localhost:" {
+			http.Error(w, "port is empty", http.StatusBadRequest)
+			return
+		}
+
 		shortURL = baseAddr + generatedID
 
 		// устанавливаем заголовок Content-Type
