@@ -1,14 +1,14 @@
 package main
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 
 	"github.com/Nastez/shortener/config"
+	"github.com/Nastez/shortener/utils"
+
 	"github.com/go-chi/chi/v5"
 )
 
@@ -66,7 +66,7 @@ func (s ShortenerHandler) postHandler(storeURL map[string]string, baseAddr strin
 		}
 		defer req.Body.Close()
 
-		generatedID := generateID()
+		generatedID := utils.GenerateID()
 		storeURL[generatedID] = originalURL
 
 		if baseAddr == "http://localhost:" {
@@ -103,10 +103,4 @@ func (s ShortenerHandler) getHandler(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Location", originalURL)
 	// устанавливаем код 307
 	w.WriteHeader(http.StatusTemporaryRedirect)
-}
-
-func generateID() string {
-	b := make([]byte, 4)
-	rand.Read(b)
-	return hex.EncodeToString(b)
 }

@@ -4,7 +4,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
+
+	"github.com/Nastez/shortener/utils"
 )
+
+var invalidPort = utils.GenerateID()
 
 var FlagRunAddr string
 var FlagBaseAddr string
@@ -19,7 +23,7 @@ func ParseFlags() {
 	// парсим переданные серверу аргументы в зарегистрированные переменные
 	flag.Parse()
 
-	if FlagBaseAddr == "http://localhost:" || FlagBaseAddr == "http://localhost:/" {
+	if FlagBaseAddr == "http://localhost:" || FlagBaseAddr == "http://localhost:/" || FlagBaseAddr == "http://localhost:"+invalidPort || FlagBaseAddr == "http://localhost:/"+invalidPort {
 		fmt.Fprintf(os.Stderr, "Invalid base address: %s (must have format http://localhost:8080/)\n", FlagBaseAddr)
 		os.Exit(1)
 	}
