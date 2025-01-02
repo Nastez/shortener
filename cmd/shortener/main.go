@@ -43,9 +43,6 @@ func run() error {
 }
 
 func ShortenerRoutes(baseAddr string) chi.Router {
-	fmt.Println("Running server on", config.FlagRunAddr)
-	fmt.Println("Running server on", config.FlagBaseAddr)
-
 	r := chi.NewRouter()
 	shortenerHandler := ShortenerHandler{}
 

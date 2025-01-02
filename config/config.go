@@ -30,8 +30,6 @@ func ParseFlags() {
 	}
 
 	log.Println(cfg)
-	fmt.Printf("SERVER_ADDRESS is %s\n", cfg.ServerAddress)
-	fmt.Printf("BASE_URL is %s\n", cfg.BaseURL)
 
 	flag.StringVar(&FlagRunAddr, "a", "localhost:8080", "address and port to run server")
 	flag.StringVar(&FlagBaseAddr, "b", "http://localhost:8080", "base address before a short URL")
@@ -41,14 +39,10 @@ func ParseFlags() {
 	if cfg.ServerAddress != "" {
 		FlagRunAddr = cfg.ServerAddress
 	}
-	fmt.Println("cfg.ServerAddress is", cfg.ServerAddress)
-	fmt.Println("FlagRunAddr is", FlagRunAddr)
 
 	if cfg.BaseURL != "" {
 		FlagBaseAddr = cfg.BaseURL
 	}
-	fmt.Println("cfg.BaseURL is", cfg.BaseURL)
-	fmt.Println("FlagBaseAddr is", FlagBaseAddr)
 
 	if FlagBaseAddr == "http://localhost:" || FlagBaseAddr == "http://localhost:/" {
 		fmt.Fprintf(os.Stderr, "Invalid base address: %s (must has format http://localhost:8080/)\n", FlagBaseAddr)
