@@ -3,10 +3,12 @@ package main
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 
+	"github.com/Nastez/shortener/config"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -15,24 +17,37 @@ var storeURL = make(map[string]string)
 type ShortenerHandler struct{}
 
 func main() {
-	r := chi.NewRouter()
+	config.ParseFlags()
 
-	r.Mount("/", ShortenerRoutes())
-
-	http.ListenAndServe(":8080", r)
+	if err := run(); err != nil {
+		panic(err)
+	}
 }
 
-func ShortenerRoutes() chi.Router {
+func run() error {
+	var flags = config.InitFlags()
+
+	fmt.Println("Running server on", flags.FlagRunAddr)
+	fmt.Println("Running server on", flags.FlagBaseAddr)
+
+	r := chi.NewRouter()
+
+	r.Mount("/", ShortenerRoutes(flags.FlagBaseAddr))
+
+	return http.ListenAndServe(flags.FlagRunAddr, r)
+}
+
+func ShortenerRoutes(baseAddr string) chi.Router {
 	r := chi.NewRouter()
 	shortenerHandler := ShortenerHandler{}
 
-	r.Post("/", shortenerHandler.postHandler(storeURL))
+	r.Post("/", shortenerHandler.postHandler(storeURL, baseAddr))
 	r.Get("/{id}", shortenerHandler.getHandler)
 
 	return r
 }
 
-func (s ShortenerHandler) postHandler(storeURL map[string]string) http.HandlerFunc {
+func (s ShortenerHandler) postHandler(storeURL map[string]string, baseAddr string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		var shortURL string
 
@@ -56,7 +71,7 @@ func (s ShortenerHandler) postHandler(storeURL map[string]string) http.HandlerFu
 		generatedID := generateID()
 		storeURL[generatedID] = originalURL
 
-		shortURL = "http://localhost:8080/" + generatedID
+		shortURL = baseAddr + generatedID
 
 		// устанавливаем заголовок Content-Type
 		w.Header().Set("Content-Type", "text/plain")
