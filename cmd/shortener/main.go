@@ -2,12 +2,11 @@ package main
 
 import (
 	"fmt"
+	"github.com/Nastez/shortener/config"
+	"github.com/Nastez/shortener/utils"
 	"io"
 	"log"
 	"net/http"
-
-	"github.com/Nastez/shortener/config"
-	"github.com/Nastez/shortener/utils"
 
 	"github.com/go-chi/chi/v5"
 )

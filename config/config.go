@@ -21,7 +21,7 @@ func ParseFlags() {
 	flag.Parse()
 
 	if FlagBaseAddr == "http://localhost:" || FlagBaseAddr == "http://localhost:/" {
-		fmt.Fprintf(os.Stderr, "Invalid base address: %s (must have format http://localhost:8080/)\n", FlagBaseAddr)
+		fmt.Fprintf(os.Stderr, "Invalid base address: %s (must has format http://localhost:8080/)\n", FlagBaseAddr)
 		os.Exit(1)
 	}
 
