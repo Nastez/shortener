@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/Nastez/shortener/internal/storage"
 )
 
 func testRequest(t *testing.T, ts *httptest.Server, method,
@@ -27,7 +29,7 @@ func testRequest(t *testing.T, ts *httptest.Server, method,
 }
 
 func Test_postHandler(t *testing.T) {
-	storeURL["https://yoga.org/"] = "875910c4"
+	storage.MemoryStorage{}["https://yoga.org/"] = "875910c4"
 
 	ts := httptest.NewServer(ShortenerRoutes(""))
 	defer ts.Close()
@@ -87,7 +89,7 @@ func Test_postHandler(t *testing.T) {
 
 func Test_getHandler(t *testing.T) {
 	id := "875910c4"
-	storeURL["https://yoga.org/"] = "875910c4"
+	storage.MemoryStorage{}["https://yoga.org/"] = "875910c4"
 
 	ts := httptest.NewServer(ShortenerRoutes(""))
 	defer ts.Close()
@@ -109,7 +111,7 @@ func Test_getHandler(t *testing.T) {
 			name: "success",
 			want: want{
 				code:   http.StatusTemporaryRedirect,
-				header: storeURL[id],
+				header: storage.MemoryStorage{}[id],
 			},
 			method:  http.MethodGet,
 			request: "/875910c4",

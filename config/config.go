@@ -22,7 +22,7 @@ type Config struct {
 
 // ParseFlags обрабатывает аргументы командной строки
 // и сохраняет их значения в соответствующих переменных
-func ParseFlags() {
+func ParseFlags() error {
 	var cfg Config
 	err := env.Parse(&cfg)
 	if err != nil {
@@ -56,6 +56,8 @@ func ParseFlags() {
 	}
 
 	Port = port
+
+	return err
 }
 
 func validatePort(port string) bool {
