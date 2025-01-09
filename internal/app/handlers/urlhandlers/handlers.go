@@ -19,11 +19,11 @@ type URLHandler struct {
 }
 
 func New(storage storage.URLStorage, baseAddr string) (*URLHandler, error) {
-	if storage != nil {
+	if storage == nil {
 		return nil, errors.New("storage is empty")
 	}
 
-	if baseAddr != "" {
+	if baseAddr == "" {
 		return nil, errors.New("baseAddr is empty")
 	}
 
