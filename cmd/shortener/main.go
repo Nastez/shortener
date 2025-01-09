@@ -1,24 +1,24 @@
 package main
 
 import (
-	"fmt"
-	"github.com/Nastez/shortener/config"
-	"github.com/Nastez/shortener/utils"
-	"io"
+	"errors"
 	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+
+	"github.com/Nastez/shortener/config"
+	"github.com/Nastez/shortener/internal/app/handlers/urlhandlers"
+	"github.com/Nastez/shortener/internal/storage"
 )
 
-var storeURL = make(map[string]string)
-
-type ShortenerHandler struct{}
-
 func main() {
-	config.ParseFlags()
+	err := config.ParseFlags()
+	if err != nil {
+		log.Fatalln(err)
+	}
 
-	if err := run(); err != nil {
+	if err = run(); err != nil {
 		panic(err)
 	}
 }
@@ -26,79 +26,32 @@ func main() {
 func run() error {
 	r := chi.NewRouter()
 
-	r.Mount("/", ShortenerRoutes(config.FlagBaseAddr))
+	routes, err := ShortenerRoutes(config.FlagBaseAddr)
+	if err != nil {
+		return err
+	}
 
-	return http.ListenAndServe(":"+config.PortTest, r)
+	r.Mount("/", routes)
+
+	return http.ListenAndServe(":"+config.Port, r)
 }
 
-func ShortenerRoutes(baseAddr string) chi.Router {
+func ShortenerRoutes(baseAddr string) (chi.Router, error) {
 	r := chi.NewRouter()
-	shortenerHandler := ShortenerHandler{}
 
-	r.Post("/", shortenerHandler.postHandler(storeURL, baseAddr))
-	r.Get("/{id}", shortenerHandler.getHandler)
+	storeURL := storage.MemoryStorage{}
 
-	return r
-}
-
-func (s ShortenerHandler) postHandler(storeURL map[string]string, baseAddr string) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		var shortURL string
-
-		if req.Method != http.MethodPost {
-			http.Error(w, "Only POST requests are allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		body, err := io.ReadAll(req.Body)
-		if err != nil {
-			log.Fatalln(err)
-		}
-
-		originalURL := string(body)
-		if originalURL == "" {
-			http.Error(w, "URL is empty", http.StatusBadRequest)
-			return
-		}
-
-		defer req.Body.Close()
-
-		generatedID := utils.GenerateID()
-		storeURL[generatedID] = originalURL
-
-		if baseAddr == "http://localhost:" {
-			http.Error(w, "port is empty", http.StatusBadRequest)
-			return
-		}
-
-		shortURL = baseAddr + "/" + generatedID
-
-		// устанавливаем заголовок Content-Type
-		w.Header().Set("Content-Type", "text/plain")
-		// устанавливаем код 201
-		w.WriteHeader(http.StatusCreated)
-		// пишем тело ответа
-		w.Write([]byte(shortURL))
-	}
-}
-
-func (s ShortenerHandler) getHandler(w http.ResponseWriter, req *http.Request) {
-	urlID := chi.URLParam(req, "id")
-	if urlID == "" {
-		http.Error(w, "urlID is missed", http.StatusBadRequest)
-		return
+	if baseAddr == "http://localhost:" {
+		return nil, errors.New("port is empty")
 	}
 
-	if req.Method != http.MethodGet {
-		http.Error(w, "Only GET requests are allowed", http.StatusMethodNotAllowed)
-		return
+	handlers, err := urlhandlers.New(storeURL, baseAddr)
+	if err != nil {
+		return nil, err
 	}
 
-	var originalURL = storeURL[urlID]
-	fmt.Println("originalURL", originalURL)
+	r.Post("/", handlers.PostHandler())
+	r.Get("/{id}", handlers.GetHandler())
 
-	// устанавливаем заголовок Location
-	w.Header().Set("Location", originalURL)
-	// устанавливаем код 307
-	w.WriteHeader(http.StatusTemporaryRedirect)
+	return r, nil
 }
