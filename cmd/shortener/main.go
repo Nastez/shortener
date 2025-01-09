@@ -1,8 +1,9 @@
 package main
 
 import (
-	"crypto/rand"
-	"encoding/hex"
+	"fmt"
+	"github.com/Nastez/shortener/config"
+	"github.com/Nastez/shortener/utils"
 	"io"
 	"log"
 	"net/http"
@@ -15,24 +16,32 @@ var storeURL = make(map[string]string)
 type ShortenerHandler struct{}
 
 func main() {
-	r := chi.NewRouter()
+	config.ParseFlags()
 
-	r.Mount("/", ShortenerRoutes())
-
-	http.ListenAndServe(":8080", r)
+	if err := run(); err != nil {
+		panic(err)
+	}
 }
 
-func ShortenerRoutes() chi.Router {
+func run() error {
+	r := chi.NewRouter()
+
+	r.Mount("/", ShortenerRoutes(config.FlagBaseAddr))
+
+	return http.ListenAndServe(":"+config.PortTest, r)
+}
+
+func ShortenerRoutes(baseAddr string) chi.Router {
 	r := chi.NewRouter()
 	shortenerHandler := ShortenerHandler{}
 
-	r.Post("/", shortenerHandler.postHandler(storeURL))
+	r.Post("/", shortenerHandler.postHandler(storeURL, baseAddr))
 	r.Get("/{id}", shortenerHandler.getHandler)
 
 	return r
 }
 
-func (s ShortenerHandler) postHandler(storeURL map[string]string) http.HandlerFunc {
+func (s ShortenerHandler) postHandler(storeURL map[string]string, baseAddr string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		var shortURL string
 
@@ -51,12 +60,18 @@ func (s ShortenerHandler) postHandler(storeURL map[string]string) http.HandlerFu
 			http.Error(w, "URL is empty", http.StatusBadRequest)
 			return
 		}
+
 		defer req.Body.Close()
 
-		generatedID := generateID()
+		generatedID := utils.GenerateID()
 		storeURL[generatedID] = originalURL
 
-		shortURL = "http://localhost:8080/" + generatedID
+		if baseAddr == "http://localhost:" {
+			http.Error(w, "port is empty", http.StatusBadRequest)
+			return
+		}
+
+		shortURL = baseAddr + "/" + generatedID
 
 		// устанавливаем заголовок Content-Type
 		w.Header().Set("Content-Type", "text/plain")
@@ -80,15 +95,10 @@ func (s ShortenerHandler) getHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	var originalURL = storeURL[urlID]
+	fmt.Println("originalURL", originalURL)
 
 	// устанавливаем заголовок Location
 	w.Header().Set("Location", originalURL)
 	// устанавливаем код 307
 	w.WriteHeader(http.StatusTemporaryRedirect)
-}
-
-func generateID() string {
-	b := make([]byte, 4)
-	rand.Read(b)
-	return hex.EncodeToString(b)
 }
