@@ -11,8 +11,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func testRequest(t *testing.T, ts *httptest.Server, method,
+	path string, body io.Reader) (*http.Response, string) {
+	req, err := http.NewRequest(method, ts.URL+path, body)
+	require.NoError(t, err)
+
+	resp, err := ts.Client().Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	return resp, string(respBody)
+}
+
 func Test_postHandler(t *testing.T) {
 	storeURL["https://yoga.org/"] = "875910c4"
+
+	ts := httptest.NewServer(ShortenerRoutes())
+	defer ts.Close()
 
 	type want struct {
 		code        int
@@ -38,9 +56,9 @@ func Test_postHandler(t *testing.T) {
 		{
 			name: "incorrect method",
 			want: want{
-				code:        http.StatusBadRequest,
+				code:        http.StatusMethodNotAllowed,
 				response:    "",
-				contentType: "text/plain; charset=utf-8",
+				contentType: "",
 			},
 			body:   "https://yoga.org/",
 			method: http.MethodGet,
@@ -59,20 +77,10 @@ func Test_postHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			req := httptest.NewRequest(test.method, "/", strings.NewReader(test.body))
-			rec := httptest.NewRecorder()
-			postHandler(storeURL)(rec, req)
-
-			res := rec.Result()
-
-			resBody, err := io.ReadAll(res.Body)
-			require.NoError(t, err)
-			err = res.Body.Close()
-			require.NoError(t, err)
-
-			assert.Equal(t, test.want.code, res.StatusCode)
-			assert.Equal(t, test.want.contentType, res.Header.Get("Content-Type"))
-			assert.NotNil(t, string(resBody))
+			resp, _ := testRequest(t, ts, test.method, "/", strings.NewReader(test.body))
+			defer resp.Body.Close()
+			assert.Equal(t, test.want.code, resp.StatusCode)
+			assert.Equal(t, test.want.contentType, resp.Header.Get("Content-Type"))
 		})
 	}
 }
@@ -80,6 +88,9 @@ func Test_postHandler(t *testing.T) {
 func Test_getHandler(t *testing.T) {
 	id := "875910c4"
 	storeURL["https://yoga.org/"] = "875910c4"
+
+	ts := httptest.NewServer(ShortenerRoutes())
+	defer ts.Close()
 
 	type want struct {
 		code        int
@@ -106,8 +117,8 @@ func Test_getHandler(t *testing.T) {
 		{
 			name: "incorrect method",
 			want: want{
-				code:        http.StatusBadRequest,
-				contentType: "text/plain; charset=utf-8",
+				code:        http.StatusMethodNotAllowed,
+				contentType: "",
 				header:      "",
 			},
 			method:  http.MethodPost,
@@ -117,16 +128,11 @@ func Test_getHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			req := httptest.NewRequest(test.method, test.request, nil)
-			rec := httptest.NewRecorder()
-			getHandler(rec, req)
-
-			res := rec.Result()
-			defer res.Body.Close()
-
-			assert.Equal(t, test.want.code, res.StatusCode)
-			assert.Equal(t, test.want.contentType, res.Header.Get("Content-Type"))
-			assert.Equal(t, test.want.header, res.Header.Get("Location"))
+			resp, _ := testRequest(t, ts, test.method, "/{id}", nil)
+			defer resp.Body.Close()
+			assert.Equal(t, test.want.code, resp.StatusCode)
+			assert.Equal(t, test.want.contentType, resp.Header.Get("Content-Type"))
+			assert.Equal(t, test.want.header, resp.Header.Get("Location"))
 		})
 	}
 }

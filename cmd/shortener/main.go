@@ -6,27 +6,38 @@ import (
 	"io"
 	"log"
 	"net/http"
+
+	"github.com/go-chi/chi/v5"
 )
 
 var storeURL = make(map[string]string)
 
-func main() {
-	mux := http.NewServeMux()
-	mux.HandleFunc(`/`, postHandler(storeURL))
-	mux.HandleFunc(`/{id}`, getHandler)
+type ShortenerHandler struct{}
 
-	err := http.ListenAndServe(`:8080`, mux)
-	if err != nil {
-		panic(err)
-	}
+func main() {
+	r := chi.NewRouter()
+
+	r.Mount("/", ShortenerRoutes())
+
+	http.ListenAndServe(":8080", r)
 }
 
-func postHandler(storeURL map[string]string) http.HandlerFunc {
+func ShortenerRoutes() chi.Router {
+	r := chi.NewRouter()
+	shortenerHandler := ShortenerHandler{}
+
+	r.Post("/", shortenerHandler.postHandler(storeURL))
+	r.Get("/{id}", shortenerHandler.getHandler)
+
+	return r
+}
+
+func (s ShortenerHandler) postHandler(storeURL map[string]string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		var shortURL string
 
 		if req.Method != http.MethodPost {
-			http.Error(w, "Only POST requests are allowed", http.StatusBadRequest)
+			http.Error(w, "Only POST requests are allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -56,15 +67,19 @@ func postHandler(storeURL map[string]string) http.HandlerFunc {
 	}
 }
 
-func getHandler(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		http.Error(w, "Only GET requests are allowed", http.StatusBadRequest)
+func (s ShortenerHandler) getHandler(w http.ResponseWriter, req *http.Request) {
+	urlID := chi.URLParam(req, "id")
+	if urlID == "" {
+		http.Error(w, "urlID is missed", http.StatusBadRequest)
 		return
 	}
 
-	var path = req.URL.Path
-	var id = path[1:]
-	var originalURL = storeURL[id]
+	if req.Method != http.MethodGet {
+		http.Error(w, "Only GET requests are allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var originalURL = storeURL[urlID]
 
 	// устанавливаем заголовок Location
 	w.Header().Set("Location", originalURL)
