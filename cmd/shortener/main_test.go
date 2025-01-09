@@ -31,7 +31,12 @@ func testRequest(t *testing.T, ts *httptest.Server, method,
 func Test_postHandler(t *testing.T) {
 	storage.MemoryStorage{}["https://yoga.org/"] = "875910c4"
 
-	ts := httptest.NewServer(ShortenerRoutes(""))
+	routes, err := ShortenerRoutes("")
+	if err != nil {
+		return
+	}
+
+	ts := httptest.NewServer(routes)
 	defer ts.Close()
 
 	type want struct {
@@ -50,7 +55,7 @@ func Test_postHandler(t *testing.T) {
 			name: "success",
 			want: want{
 				code:        http.StatusCreated,
-				contentType: "text/plain",
+				contentType: "text/plain; charset=utf-8",
 			},
 			body:   "https://yoga.org/",
 			method: http.MethodPost,
@@ -91,7 +96,12 @@ func Test_getHandler(t *testing.T) {
 	id := "875910c4"
 	storage.MemoryStorage{}["https://yoga.org/"] = "875910c4"
 
-	ts := httptest.NewServer(ShortenerRoutes(""))
+	routes, err := ShortenerRoutes("")
+	if err != nil {
+		return
+	}
+
+	ts := httptest.NewServer(routes)
 	defer ts.Close()
 
 	type want struct {

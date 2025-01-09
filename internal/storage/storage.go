@@ -1,3 +1,4 @@
+//go:generate mockgen -source=storage.go -destination=mocks/mocks.go
 package storage
 
 type MemoryStorage map[string]string

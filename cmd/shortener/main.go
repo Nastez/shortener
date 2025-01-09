@@ -1,14 +1,14 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 
 	"github.com/Nastez/shortener/config"
-	getHandler "github.com/Nastez/shortener/internal/app/handlers/gethandler"
-	postHandler "github.com/Nastez/shortener/internal/app/handlers/posthandler"
+	"github.com/Nastez/shortener/internal/app/handlers/urlhandlers"
 	"github.com/Nastez/shortener/internal/storage"
 )
 
@@ -26,18 +26,32 @@ func main() {
 func run() error {
 	r := chi.NewRouter()
 
-	r.Mount("/", ShortenerRoutes(config.FlagBaseAddr))
+	routes, err := ShortenerRoutes(config.FlagBaseAddr)
+	if err != nil {
+		return err
+	}
+
+	r.Mount("/", routes)
 
 	return http.ListenAndServe(":"+config.Port, r)
 }
 
-func ShortenerRoutes(baseAddr string) chi.Router {
+func ShortenerRoutes(baseAddr string) (chi.Router, error) {
 	r := chi.NewRouter()
 
 	storeURL := storage.MemoryStorage{}
 
-	r.Post("/", postHandler.PostHandler(storeURL, baseAddr))
-	r.Get("/{id}", getHandler.GetHandler(storeURL))
+	if baseAddr == "http://localhost:" {
+		return nil, errors.New("port is empty")
+	}
 
-	return r
+	handlers, err := urlhandlers.New(storeURL, baseAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	r.Post("/", handlers.PostHandler())
+	r.Get("/{id}", handlers.GetHandler())
+
+	return r, nil
 }
