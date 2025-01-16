@@ -9,6 +9,7 @@ import (
 
 	"github.com/Nastez/shortener/config"
 	"github.com/Nastez/shortener/internal/app/handlers/urlhandlers"
+	"github.com/Nastez/shortener/internal/logger"
 	"github.com/Nastez/shortener/internal/storage"
 )
 
@@ -50,8 +51,8 @@ func ShortenerRoutes(baseAddr string) (chi.Router, error) {
 		return nil, err
 	}
 
-	r.Post("/", handlers.PostHandler())
-	r.Get("/{id}", handlers.GetHandler())
+	r.Post("/", logger.WithLogging(handlers.PostHandler()))
+	r.Get("/{id}", logger.WithLogging(handlers.GetHandler()))
 
 	return r, nil
 }
