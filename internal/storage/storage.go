@@ -4,15 +4,15 @@ package storage
 type MemoryStorage map[string]string
 
 type URLStorage interface {
-	SaveOriginalURL(originalURL string, generatedID string)
-	GetOriginalURL(urlID string) string
+	Save(originalURL string, generatedID string)
+	Get(urlID string) string
 }
 
-func (m MemoryStorage) SaveOriginalURL(originalURL string, generatedID string) {
+func (m MemoryStorage) Save(originalURL string, generatedID string) {
 	m[generatedID] = originalURL
 }
 
-func (m MemoryStorage) GetOriginalURL(urlID string) string {
+func (m MemoryStorage) Get(urlID string) string {
 	var originalURL = m[urlID]
 
 	return originalURL

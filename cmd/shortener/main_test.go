@@ -148,3 +148,67 @@ func Test_getHandler(t *testing.T) {
 		})
 	}
 }
+
+func Test_shortenerHandler(t *testing.T) {
+	storage.MemoryStorage{}["https://yoga.org/"] = "875910c4"
+
+	routes, err := ShortenerRoutes("")
+	if err != nil {
+		return
+	}
+
+	ts := httptest.NewServer(routes)
+	defer ts.Close()
+
+	type want struct {
+		code        int
+		response    string
+		contentType string
+	}
+
+	tests := []struct {
+		name   string
+		want   want
+		body   string
+		method string
+	}{
+		{
+			name: "success",
+			want: want{
+				code:        http.StatusCreated,
+				contentType: "application/json",
+			},
+			body:   "https://yoga.org/",
+			method: http.MethodPost,
+		},
+		{
+			name: "incorrect method",
+			want: want{
+				code:        http.StatusMethodNotAllowed,
+				response:    "",
+				contentType: "",
+			},
+			body:   "https://yoga.org/",
+			method: http.MethodGet,
+		},
+		{
+			name: "request body is empty",
+			want: want{
+				code:        http.StatusBadRequest,
+				response:    "",
+				contentType: "application/json",
+			},
+			body:   "",
+			method: http.MethodPost,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			resp, _ := testRequest(t, ts, test.method, "/api/shorten", strings.NewReader(test.body))
+			defer resp.Body.Close()
+			assert.Equal(t, test.want.code, resp.StatusCode)
+			assert.Equal(t, test.want.contentType, resp.Header.Get("Content-Type"))
+		})
+	}
+}

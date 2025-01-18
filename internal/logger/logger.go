@@ -8,6 +8,7 @@ import (
 )
 
 var sugar zap.SugaredLogger
+var Log *zap.Logger = zap.NewNop()
 
 type (
 	// берём структуру для хранения сведений об ответе

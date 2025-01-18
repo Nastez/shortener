@@ -53,6 +53,7 @@ func ShortenerRoutes(baseAddr string) (chi.Router, error) {
 
 	r.Post("/", logger.WithLogging(handlers.PostHandler()))
 	r.Get("/{id}", logger.WithLogging(handlers.GetHandler()))
+	r.Post("/api/shorten", logger.WithLogging(handlers.ShortenerHandler()))
 
 	return r, nil
 }

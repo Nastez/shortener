@@ -1,14 +1,17 @@
 package urlhandlers
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"go.uber.org/zap"
 	"io"
-	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/Nastez/shortener/internal/app/models"
+	"github.com/Nastez/shortener/internal/logger"
 	"github.com/Nastez/shortener/internal/storage"
 	"github.com/Nastez/shortener/utils"
 )
@@ -44,7 +47,8 @@ func (h *URLHandler) PostHandler() http.HandlerFunc {
 
 		body, err := io.ReadAll(req.Body)
 		if err != nil {
-			log.Fatalln(err)
+			logger.Log.Info("can't read body")
+			return
 		}
 
 		originalURL := string(body)
@@ -56,7 +60,7 @@ func (h *URLHandler) PostHandler() http.HandlerFunc {
 		defer req.Body.Close()
 
 		generatedID := utils.GenerateID()
-		h.storage.SaveOriginalURL(originalURL, generatedID)
+		h.storage.Save(originalURL, generatedID)
 
 		shortURL = h.baseAddr + "/" + generatedID
 
@@ -82,12 +86,58 @@ func (h *URLHandler) GetHandler() http.HandlerFunc {
 			return
 		}
 
-		var originalURL = h.storage.GetOriginalURL(urlID)
+		var originalURL = h.storage.Get(urlID)
 		fmt.Println("originalURL", originalURL)
 
 		// устанавливаем заголовок Location
 		w.Header().Set("Location", originalURL)
 		// устанавливаем код 307
 		w.WriteHeader(http.StatusTemporaryRedirect)
+	}
+}
+
+func (h *URLHandler) ShortenerHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		if req.Method != http.MethodPost {
+			logger.Log.Info("got request with bad method", zap.String("method", req.Method))
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			http.Error(w, "Only POST requests are allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// десериализуем запрос в структуру модели
+		logger.Log.Info("decoding request")
+		var request models.Request
+		dec := json.NewDecoder(req.Body)
+		if err := dec.Decode(&request); err != nil {
+			logger.Log.Info("cannot decode request JSON body", zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		var shortURL string
+		originalURL := request.URL
+
+		generatedID := utils.GenerateID()
+		h.storage.Save(originalURL, generatedID)
+		shortURL = h.baseAddr + "/" + generatedID
+
+		// заполняем модель ответа
+		resp := models.Response{
+			Result: shortURL,
+		}
+
+		// устанавливаем заголовок Content-Type
+		w.Header().Set("Content-Type", "application/json")
+		// устанавливаем код 201
+		w.WriteHeader(http.StatusCreated)
+
+		// сериализуем ответ сервера
+		enc := json.NewEncoder(w)
+		if err := enc.Encode(resp); err != nil {
+			logger.Log.Info("error encoding response", zap.Error(err))
+			return
+		}
+		logger.Log.Info("sending HTTP 201 response")
 	}
 }
