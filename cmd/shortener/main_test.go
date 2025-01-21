@@ -126,7 +126,7 @@ func Test_getHandler(t *testing.T) {
 		{
 			name: "success",
 			want: want{
-				code:   http.StatusOK,
+				code:   http.StatusTemporaryRedirect,
 				header: storage.MemoryStorage{}[id],
 			},
 			method:  http.MethodGet,

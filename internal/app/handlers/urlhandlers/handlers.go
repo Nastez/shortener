@@ -92,7 +92,7 @@ func (h *URLHandler) GetHandler() http.HandlerFunc {
 		// устанавливаем заголовок Location
 		w.Header().Set("Location", originalURL)
 		// устанавливаем код 307
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusTemporaryRedirect)
 	}
 }
 
