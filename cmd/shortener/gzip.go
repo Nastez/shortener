@@ -79,8 +79,11 @@ func GzipMiddleware(h http.Handler) http.HandlerFunc {
 
 		// проверяем, что клиент умеет получать от сервера сжатые данные в формате gzip
 		acceptEncoding := r.Header.Get("Accept-Encoding")
+		contentType := r.Header.Get("Content-Type")
+		supportApplicationJSON := strings.Contains(contentType, "application/json")
+		supportTextHTML := strings.Contains(contentType, "text/html")
 		supportsGzip := strings.Contains(acceptEncoding, "gzip")
-		if supportsGzip {
+		if supportsGzip && (supportApplicationJSON || supportTextHTML) {
 			// оборачиваем оригинальный http.ResponseWriter новым с поддержкой сжатия
 			cw := newCompressWriter(w)
 			// меняем оригинальный http.ResponseWriter на новый
@@ -93,10 +96,8 @@ func GzipMiddleware(h http.Handler) http.HandlerFunc {
 		contentEncoding := r.Header.Get("Content-Encoding")
 
 		sendsGzip := strings.Contains(contentEncoding, "gzip")
-		contentType := r.Header.Get("Content-Type")
-		supportApplicationJSON := strings.Contains(contentType, "application/json")
-		supportTextHTML := strings.Contains(contentType, "text/html")
-		if sendsGzip && (supportApplicationJSON || supportTextHTML) {
+
+		if sendsGzip {
 			// оборачиваем тело запроса в io.Reader с поддержкой декомпрессии
 			cr, err := newCompressReader(r.Body)
 			if err != nil {
