@@ -51,9 +51,9 @@ func ShortenerRoutes(baseAddr string) (chi.Router, error) {
 		return nil, err
 	}
 
-	r.Post("/", logger.WithLogging(handlers.PostHandler()))
-	r.Get("/{id}", logger.WithLogging(handlers.GetHandler()))
-	r.Post("/api/shorten", logger.WithLogging(handlers.ShortenerHandler()))
+	r.Post("/", logger.WithLogging(GzipMiddleware(handlers.PostHandler())))
+	r.Get("/{id}", logger.WithLogging(GzipMiddleware(handlers.GetHandler())))
+	r.Post("/api/shorten", logger.WithLogging(GzipMiddleware(handlers.ShortenerHandler())))
 
 	return r, nil
 }
