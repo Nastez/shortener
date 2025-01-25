@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -13,26 +14,30 @@ import (
 
 var FlagRunAddr string
 var FlagBaseAddr string
+var FlagFileStoragePath string
 var Port string
+var FileName string
 
 type Config struct {
-	ServerAddress string `env:"SERVER_ADDRESS"`
-	BaseURL       string `env:"BASE_URL"`
+	ServerAddress   string `env:"SERVER_ADDRESS"`
+	BaseURL         string `env:"BASE_URL"`
+	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 }
 
-// ParseFlags обрабатывает аргументы командной строки
+// ParseFlagsAndEnv обрабатывает аргументы командной строки
 // и сохраняет их значения в соответствующих переменных
-func ParseFlags() error {
+func ParseFlagsAndEnv() error {
 	var cfg Config
 	err := env.Parse(&cfg)
 	if err != nil {
-		log.Fatal(err)
+		return errors.New("can't parse env")
 	}
 
 	log.Println(cfg)
 
 	flag.StringVar(&FlagRunAddr, "a", "localhost:8080", "address and port to run server")
 	flag.StringVar(&FlagBaseAddr, "b", "http://localhost:8080", "base address before a short URL")
+	flag.StringVar(&FlagFileStoragePath, "f", "events.log", "file storage path")
 	// парсим переданные серверу аргументы в зарегистрированные переменные
 	flag.Parse()
 
@@ -44,6 +49,18 @@ func ParseFlags() error {
 		FlagBaseAddr = cfg.BaseURL
 	}
 
+	if FlagFileStoragePath != "" {
+		FileName = FlagFileStoragePath
+	}
+
+	if cfg.FileStoragePath != "" {
+		FileName = cfg.FileStoragePath
+	}
+
+	if cfg.FileStoragePath == "" && FlagFileStoragePath != "" {
+		FileName = FlagFileStoragePath
+	}
+
 	if FlagBaseAddr == "http://localhost:" || FlagBaseAddr == "http://localhost:/" {
 		fmt.Fprintf(os.Stderr, "Invalid base address: %s (must has format http://localhost:8080/)\n", FlagBaseAddr)
 		os.Exit(1)
@@ -52,7 +69,7 @@ func ParseFlags() error {
 	port := splitRunAddr(FlagRunAddr)
 
 	if !validatePort(port) {
-		log.Fatalf("Invalid port number: %s", port)
+		return errors.New("invalid port number")
 	}
 
 	Port = port

@@ -4,17 +4,19 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/go-chi/chi/v5"
 
 	"github.com/Nastez/shortener/config"
 	"github.com/Nastez/shortener/internal/app/handlers/urlhandlers"
 	"github.com/Nastez/shortener/internal/logger"
+	"github.com/Nastez/shortener/internal/saver"
 	"github.com/Nastez/shortener/internal/storage"
 )
 
 func main() {
-	err := config.ParseFlags()
+	err := config.ParseFlagsAndEnv()
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -26,6 +28,11 @@ func main() {
 
 func run() error {
 	r := chi.NewRouter()
+
+	fileName := &config.FileName
+	defer os.Remove(*fileName)
+
+	saver.SaveFile(*fileName)
 
 	routes, err := ShortenerRoutes(config.FlagBaseAddr)
 	if err != nil {
