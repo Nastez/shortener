@@ -32,7 +32,10 @@ func run() error {
 	fileName := &config.FileName
 	defer os.Remove(*fileName)
 
-	saver.SaveFile(*fileName)
+	err := saver.SaveFile(*fileName)
+	if err != nil {
+		return err
+	}
 
 	routes, err := ShortenerRoutes(config.FlagBaseAddr)
 	if err != nil {

@@ -24,17 +24,17 @@ var Events = []*models.Event{
 	{
 		UUID:        1,
 		ShortURL:    "4rSPg8ap",
-		OriginalUrl: "http://yandex.ru",
+		OriginalURL: "http://yandex.ru",
 	},
 	{
 		UUID:        2,
 		ShortURL:    "edVPg3ks",
-		OriginalUrl: "http://ya.ru",
+		OriginalURL: "http://ya.ru",
 	},
 	{
 		UUID:        3,
 		ShortURL:    "dG56Hqxm",
-		OriginalUrl: "http://practicum.yandex.ru",
+		OriginalURL: "http://practicum.yandex.ru",
 	},
 }
 
@@ -83,29 +83,30 @@ func (c *Consumer) Close() error {
 	return c.file.Close()
 }
 
-func SaveFile(fileName string) {
+func SaveFile(fileName string) error {
 	Producer, err := NewProducer(fileName)
 	if err != nil {
-		errors.New("can't open file")
+		return errors.New("can't open file")
 	}
 	defer Producer.Close()
 
 	Consumer, err := NewConsumer(fileName)
 	if err != nil {
-		errors.New("can't open file")
+		return errors.New("can't open file")
 	}
 	defer Consumer.Close()
 
 	for _, event := range Events {
 		if err := Producer.WriteEvent(event); err != nil {
-			errors.New("can't write event")
+			return errors.New("can't write event")
 		}
 
 		readEvent, err := Consumer.ReadEvent()
 		if err != nil {
-			errors.New("can't read file")
+			return errors.New("can't read file")
 		}
 
 		fmt.Println(readEvent)
 	}
+	return nil
 }
