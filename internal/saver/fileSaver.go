@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/Nastez/shortener/internal/app/models"
 )
 
 type Producer struct {
-	file *os.File // файл для записи
+	writer io.WriteCloser // файл для записи
 	// добавляем Writer в Producer
 	encoder *json.Encoder
 }
@@ -45,7 +46,7 @@ func NewProducer(fileName string) (*Producer, error) {
 	}
 
 	return &Producer{
-		file:    file,
+		writer:  file,
 		encoder: json.NewEncoder(file),
 	}, nil
 }
@@ -55,7 +56,7 @@ func (p *Producer) WriteEvent(event *models.Event) error {
 }
 
 func (p *Producer) Close() error {
-	return p.file.Close()
+	return p.writer.Close()
 }
 
 func NewConsumer(fileName string) (*Consumer, error) {
