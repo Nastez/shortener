@@ -16,35 +16,34 @@ import (
 )
 
 func main() {
-	err := config.ParseFlagsAndEnv()
+	cfg, err := config.New()
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	if err = run(); err != nil {
+	if err = run(cfg); err != nil {
 		panic(err)
 	}
 }
 
-func run() error {
+func run(cfg *config.Config) error {
 	r := chi.NewRouter()
 
-	fileName := &config.FileName
-	defer os.Remove(*fileName)
+	defer os.Remove(cfg.FileName)
 
-	err := saver.SaveFile(*fileName)
+	err := saver.SaveFile(cfg.FileName)
 	if err != nil {
 		return err
 	}
 
-	routes, err := ShortenerRoutes(config.FlagBaseAddr)
+	routes, err := ShortenerRoutes(cfg.BaseURL)
 	if err != nil {
 		return err
 	}
 
 	r.Mount("/", routes)
 
-	return http.ListenAndServe(":"+config.Port, r)
+	return http.ListenAndServe(":"+cfg.Port, r)
 }
 
 func ShortenerRoutes(baseAddr string) (chi.Router, error) {

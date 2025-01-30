@@ -12,69 +12,83 @@ import (
 	"github.com/caarlos0/env/v6"
 )
 
-var FlagRunAddr string
-var FlagBaseAddr string
-var FlagFileStoragePath string
-var Port string
-var FileName string
-
-type Config struct {
+type Env struct {
 	ServerAddress   string `env:"SERVER_ADDRESS"`
 	BaseURL         string `env:"BASE_URL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 }
 
-// ParseFlagsAndEnv обрабатывает аргументы командной строки
+type Config struct {
+	ServerAddress   string
+	BaseURL         string
+	FileStoragePath string
+	Port            string
+	FileName        string
+}
+
+// New обрабатывает аргументы командной строки
 // и сохраняет их значения в соответствующих переменных
-func ParseFlagsAndEnv() error {
-	var cfg Config
-	err := env.Parse(&cfg)
+func New() (*Config, error) {
+	var envConf Env
+	err := env.Parse(&envConf)
 	if err != nil {
-		return errors.New("can't parse env")
+		return nil, errors.New("can't parse env")
 	}
 
-	log.Println(cfg)
+	log.Println(envConf)
 
-	flag.StringVar(&FlagRunAddr, "a", "localhost:8080", "address and port to run server")
-	flag.StringVar(&FlagBaseAddr, "b", "http://localhost:8080", "base address before a short URL")
-	flag.StringVar(&FlagFileStoragePath, "f", "events.log", "file storage path")
+	var (
+		serverAddress   string
+		baseURL         string
+		fileStoragePath string
+		port            string
+		fileName        string
+	)
+
+	flag.StringVar(&serverAddress, "a", "localhost:8080", "address and port to run server")
+	flag.StringVar(&baseURL, "b", "http://localhost:8080", "base address before a short URL")
+	flag.StringVar(&fileStoragePath, "f", "events.log", "file storage path")
 	// парсим переданные серверу аргументы в зарегистрированные переменные
 	flag.Parse()
 
-	if cfg.ServerAddress != "" {
-		FlagRunAddr = cfg.ServerAddress
+	if envConf.ServerAddress != "" {
+		serverAddress = envConf.ServerAddress
 	}
 
-	if cfg.BaseURL != "" {
-		FlagBaseAddr = cfg.BaseURL
+	if envConf.BaseURL != "" {
+		baseURL = envConf.BaseURL
 	}
 
-	if FlagFileStoragePath != "" {
-		FileName = FlagFileStoragePath
+	if fileStoragePath != "" {
+		fileName = fileStoragePath
 	}
 
-	if cfg.FileStoragePath != "" {
-		FileName = cfg.FileStoragePath
+	if envConf.FileStoragePath != "" {
+		fileName = envConf.FileStoragePath
 	}
 
-	if cfg.FileStoragePath == "" && FlagFileStoragePath != "" {
-		FileName = FlagFileStoragePath
+	if envConf.FileStoragePath == "" && fileStoragePath != "" {
+		fileName = fileStoragePath
 	}
 
-	if FlagBaseAddr == "http://localhost:" || FlagBaseAddr == "http://localhost:/" {
-		fmt.Fprintf(os.Stderr, "Invalid base address: %s (must has format http://localhost:8080/)\n", FlagBaseAddr)
+	if baseURL == "http://localhost:" || baseURL == "http://localhost:/" {
+		fmt.Fprintf(os.Stderr, "Invalid base address: %s (must has format http://localhost:8080/)\n", baseURL)
 		os.Exit(1)
 	}
 
-	port := splitRunAddr(FlagRunAddr)
+	port = splitRunAddr(serverAddress)
 
 	if !validatePort(port) {
-		return errors.New("invalid port number")
+		return nil, errors.New("invalid port number")
 	}
 
-	Port = port
-
-	return err
+	return &Config{
+		ServerAddress:   serverAddress,
+		BaseURL:         baseURL,
+		FileStoragePath: fileStoragePath,
+		Port:            port,
+		FileName:        fileName,
+	}, nil
 }
 
 func validatePort(port string) bool {
