@@ -33,28 +33,28 @@ func (m *MockURLStorage) EXPECT() *MockURLStorageMockRecorder {
 	return m.recorder
 }
 
-// GetOriginalURL mocks base method.
-func (m *MockURLStorage) GetOriginalURL(urlID string) string {
+// Get mocks base method.
+func (m *MockURLStorage) Get(urlID string) string {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetOriginalURL", urlID)
+	ret := m.ctrl.Call(m, "Get", urlID)
 	ret0, _ := ret[0].(string)
 	return ret0
 }
 
-// GetOriginalURL indicates an expected call of GetOriginalURL.
-func (mr *MockURLStorageMockRecorder) GetOriginalURL(urlID interface{}) *gomock.Call {
+// Get indicates an expected call of Get.
+func (mr *MockURLStorageMockRecorder) Get(urlID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOriginalURL", reflect.TypeOf((*MockURLStorage)(nil).GetOriginalURL), urlID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockURLStorage)(nil).Get), urlID)
 }
 
-// SaveOriginalURL mocks base method.
-func (m *MockURLStorage) SaveOriginalURL(originalURL, generatedID string) {
+// Save mocks base method.
+func (m *MockURLStorage) Save(originalURL, generatedID string) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SaveOriginalURL", originalURL, generatedID)
+	m.ctrl.Call(m, "Save", originalURL, generatedID)
 }
 
-// SaveOriginalURL indicates an expected call of SaveOriginalURL.
-func (mr *MockURLStorageMockRecorder) SaveOriginalURL(originalURL, generatedID interface{}) *gomock.Call {
+// Save indicates an expected call of Save.
+func (mr *MockURLStorageMockRecorder) Save(originalURL, generatedID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveOriginalURL", reflect.TypeOf((*MockURLStorage)(nil).SaveOriginalURL), originalURL, generatedID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockURLStorage)(nil).Save), originalURL, generatedID)
 }
