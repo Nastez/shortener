@@ -36,7 +36,7 @@ func run(cfg *config.Config) error {
 		return err
 	}
 
-	routes, err := ShortenerRoutes(cfg.BaseURL)
+	routes, err := ShortenerRoutes(cfg.BaseURL, cfg.DatabaseConnectionAddress)
 	if err != nil {
 		return err
 	}
@@ -46,7 +46,7 @@ func run(cfg *config.Config) error {
 	return http.ListenAndServe(":"+cfg.Port, r)
 }
 
-func ShortenerRoutes(baseAddr string) (chi.Router, error) {
+func ShortenerRoutes(baseAddr string, databaseConnectionAddress string) (chi.Router, error) {
 	r := chi.NewRouter()
 
 	storeURL := storage.MemoryStorage{}
@@ -55,7 +55,11 @@ func ShortenerRoutes(baseAddr string) (chi.Router, error) {
 		return nil, errors.New("port is empty")
 	}
 
-	handlers, err := urlhandlers.New(storeURL, baseAddr)
+	if databaseConnectionAddress == "" {
+		return nil, errors.New("get databaseConnectionAddress error")
+	}
+
+	handlers, err := urlhandlers.New(storeURL, baseAddr, databaseConnectionAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -63,6 +67,7 @@ func ShortenerRoutes(baseAddr string) (chi.Router, error) {
 	r.Post("/", logger.WithLogging(GzipMiddleware(handlers.PostHandler())))
 	r.Get("/{id}", logger.WithLogging(GzipMiddleware(handlers.GetHandler())))
 	r.Post("/api/shorten", logger.WithLogging(GzipMiddleware(handlers.ShortenerHandler())))
+	r.Get("/ping", logger.WithLogging(GzipMiddleware(handlers.GetPing())))
 
 	return r, nil
 }
