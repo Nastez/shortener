@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Nastez/shortener/internal/store/pg"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -17,17 +19,17 @@ import (
 
 	"github.com/Nastez/shortener/internal/app/models"
 	"github.com/Nastez/shortener/internal/logger"
-	"github.com/Nastez/shortener/internal/storage"
 	"github.com/Nastez/shortener/utils"
 )
 
 type URLHandler struct {
-	storage                   storage.URLStorage
+	storage                   pg.URLStorage
+	conn                      *sql.DB
 	baseAddr                  string
 	databaseConnectionAddress string
 }
 
-func New(storage storage.URLStorage, baseAddr string, databaseConnectionAddress string) (*URLHandler, error) {
+func New(storage pg.URLStorage, conn *sql.DB, baseAddr string, databaseConnectionAddress string) (*URLHandler, error) {
 	if storage == nil {
 		return nil, errors.New("storage is empty")
 	}
@@ -42,6 +44,7 @@ func New(storage storage.URLStorage, baseAddr string, databaseConnectionAddress 
 
 	return &URLHandler{
 		storage:                   storage,
+		conn:                      conn,
 		baseAddr:                  baseAddr,
 		databaseConnectionAddress: databaseConnectionAddress,
 	}, nil
@@ -50,6 +53,7 @@ func New(storage storage.URLStorage, baseAddr string, databaseConnectionAddress 
 func (h *URLHandler) PostHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		var shortURL string
+		ctx := req.Context()
 
 		if req.Method != http.MethodPost {
 			http.Error(w, "Only POST requests are allowed", http.StatusMethodNotAllowed)
@@ -71,7 +75,17 @@ func (h *URLHandler) PostHandler() http.HandlerFunc {
 		defer req.Body.Close()
 
 		generatedID := utils.GenerateID()
-		h.storage.Save(originalURL, generatedID)
+		//h.storage.Save(originalURL, generatedID)
+		originalURL = strings.TrimPrefix(originalURL, `"`)
+		originalURL = strings.TrimSuffix(originalURL, `"`)
+		originalURL = strings.TrimSuffix(originalURL, "+")
+
+		err = h.storage.Save(ctx, originalURL, shortURL, generatedID)
+		if err != nil {
+			logger.Log.Debug("cannot save urls", zap.String("originalURL", originalURL), zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 
 		shortURL = h.baseAddr + "/" + generatedID
 
@@ -86,6 +100,7 @@ func (h *URLHandler) PostHandler() http.HandlerFunc {
 
 func (h *URLHandler) GetHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
 		urlID := chi.URLParam(req, "id")
 		if urlID == "" {
 			http.Error(w, "urlID is missed", http.StatusBadRequest)
@@ -97,8 +112,15 @@ func (h *URLHandler) GetHandler() http.HandlerFunc {
 			return
 		}
 
-		var originalURL = h.storage.Get(urlID)
-		fmt.Println("originalURL", originalURL)
+		//var originalURL = h.storage.Get(urlID)
+		originalURL, err := h.storage.GetOriginalURL(ctx, urlID)
+		if err != nil {
+			logger.Log.Debug("cannot get originalURL", zap.String("originalURL", originalURL), zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		fmt.Println("originalTuTu", originalURL)
 
 		// устанавливаем заголовок Location
 		w.Header().Set("Location", originalURL)
@@ -109,6 +131,7 @@ func (h *URLHandler) GetHandler() http.HandlerFunc {
 
 func (h *URLHandler) ShortenerHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
 		if req.Method != http.MethodPost {
 			logger.Log.Info("got request with bad method", zap.String("method", req.Method))
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -130,8 +153,14 @@ func (h *URLHandler) ShortenerHandler() http.HandlerFunc {
 		originalURL := request.URL
 
 		generatedID := utils.GenerateID()
-		h.storage.Save(originalURL, generatedID)
+		//h.storage.Save(originalURL, generatedID)
 		shortURL = h.baseAddr + "/" + generatedID
+		err := h.storage.Save(ctx, originalURL, shortURL, generatedID)
+		if err != nil {
+			logger.Log.Debug("cannot save urls", zap.String("originalURL", originalURL), zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 
 		// заполняем модель ответа
 		resp := models.Response{

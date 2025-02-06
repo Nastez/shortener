@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/Nastez/shortener/internal/store/pg"
 	"log"
 	"net/http"
 	"os"
@@ -14,7 +15,6 @@ import (
 	"github.com/Nastez/shortener/internal/app/handlers/urlhandlers"
 	"github.com/Nastez/shortener/internal/logger"
 	"github.com/Nastez/shortener/internal/saver"
-	"github.com/Nastez/shortener/internal/storage"
 )
 
 func main() {
@@ -58,7 +58,7 @@ func run(cfg *config.Config) error {
 	//	return err
 	//}
 
-	routes, err := ShortenerRoutes(cfg.BaseURL, cfg.DatabaseConnectionAddress)
+	routes, err := ShortenerRoutes(cfg.BaseURL, cfg.DatabaseConnectionAddress, conn)
 	if err != nil {
 		return err
 	}
@@ -68,10 +68,10 @@ func run(cfg *config.Config) error {
 	return http.ListenAndServe(":"+cfg.Port, r)
 }
 
-func ShortenerRoutes(baseAddr string, databaseConnectionAddress string) (chi.Router, error) {
+func ShortenerRoutes(baseAddr string, databaseConnectionAddress string, conn *sql.DB) (chi.Router, error) {
 	r := chi.NewRouter()
 
-	storeURL := storage.MemoryStorage{}
+	//storeURL := storage.MemoryStorage{}
 
 	if baseAddr == "http://localhost:" {
 		return nil, errors.New("port is empty")
@@ -81,7 +81,7 @@ func ShortenerRoutes(baseAddr string, databaseConnectionAddress string) (chi.Rou
 		return nil, errors.New("get databaseConnectionAddress error")
 	}
 
-	handlers, err := urlhandlers.New(storeURL, baseAddr, databaseConnectionAddress)
+	handlers, err := urlhandlers.New(pg.NewStore(conn), conn, baseAddr, databaseConnectionAddress)
 	if err != nil {
 		return nil, err
 	}

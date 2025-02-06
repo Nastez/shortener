@@ -14,8 +14,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/Nastez/shortener/internal/app/handlers/urlhandlers"
-	"github.com/Nastez/shortener/internal/storage"
 )
+
+type MemoryStorage map[string]string
+
+var storeURL = MemoryStorage{}
 
 func testRequest(t *testing.T, ts *httptest.Server, method,
 	path string, body io.Reader) (*http.Response, string) {
@@ -36,7 +39,7 @@ func testRequest(t *testing.T, ts *httptest.Server, method,
 }
 
 func Test_postHandler(t *testing.T) {
-	storage.MemoryStorage{}["https://yoga.org/"] = "875910c4"
+	storeURL["https://yoga.org/"] = "875910c4"
 
 	routes, err := ShortenerRoutes("", "", nil)
 	if err != nil {
@@ -101,7 +104,7 @@ func Test_postHandler(t *testing.T) {
 
 func Test_getHandler(t *testing.T) {
 	id := "875910c4"
-	storage.MemoryStorage{}["https://yoga.org/"] = "875910c4"
+	storeURL["https://yoga.org/"] = "875910c4"
 
 	routes, err := ShortenerRoutes("", "", nil)
 	if err != nil {
@@ -128,7 +131,7 @@ func Test_getHandler(t *testing.T) {
 			name: "success",
 			want: want{
 				code:   http.StatusTemporaryRedirect,
-				header: storage.MemoryStorage{}[id],
+				header: storeURL[id],
 			},
 			method:  http.MethodGet,
 			request: "/875910c4",
@@ -157,7 +160,7 @@ func Test_getHandler(t *testing.T) {
 }
 
 func Test_shortenerHandler(t *testing.T) {
-	storage.MemoryStorage{}["https://yoga.org/"] = "875910c4"
+	storeURL["https://yoga.org/"] = "875910c4"
 
 	routes, err := ShortenerRoutes("", "", nil)
 	if err != nil {
@@ -269,9 +272,9 @@ func Test_getPing(t *testing.T) {
 }
 
 func TestGzipCompression(t *testing.T) {
-	var storeURL = storage.MemoryStorage{}
+	//var storeURL = storeURL
 
-	handler, err := urlhandlers.New(storeURL, "http://localhost:8080", "")
+	handler, err := urlhandlers.New(nil, nil, "http://localhost:8080", "")
 	if err != nil {
 		return
 	}
