@@ -1,7 +1,9 @@
 package main
 
 import (
+	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -35,6 +37,26 @@ func run(cfg *config.Config) error {
 	if err != nil {
 		return err
 	}
+
+	// создаём соединение с СУБД PostgreSQL с помощью аргумента командной строки
+	conn, err := sql.Open("pgx", cfg.DatabaseConnectionAddress)
+	if err != nil {
+		return err
+	}
+
+	// Проверка соединения
+	err = conn.Ping()
+	if err != nil {
+		log.Fatal("ошибка подключения:", err)
+	}
+	fmt.Println("подключение к БД успешно")
+
+	// создаём экземпляр приложения, передавая реализацию хранилища pg в качестве внешней зависимости
+	// appInstance := newApp(pg.NewStore(conn), cfg.BaseURL, cfg.DatabaseURI)
+	//appInstance, err := urlhandlers.New(pg.NewStore(conn), cfg.BaseURL, cfg.DatabaseConnectionAddress)
+	//if err != nil {
+	//	return err
+	//}
 
 	routes, err := ShortenerRoutes(cfg.BaseURL, cfg.DatabaseConnectionAddress)
 	if err != nil {

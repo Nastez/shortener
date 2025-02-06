@@ -38,7 +38,7 @@ func testRequest(t *testing.T, ts *httptest.Server, method,
 func Test_postHandler(t *testing.T) {
 	storage.MemoryStorage{}["https://yoga.org/"] = "875910c4"
 
-	routes, err := ShortenerRoutes("", "")
+	routes, err := ShortenerRoutes("", "", nil)
 	if err != nil {
 		return
 	}
@@ -103,7 +103,7 @@ func Test_getHandler(t *testing.T) {
 	id := "875910c4"
 	storage.MemoryStorage{}["https://yoga.org/"] = "875910c4"
 
-	routes, err := ShortenerRoutes("", "")
+	routes, err := ShortenerRoutes("", "", nil)
 	if err != nil {
 		return
 	}
@@ -159,7 +159,7 @@ func Test_getHandler(t *testing.T) {
 func Test_shortenerHandler(t *testing.T) {
 	storage.MemoryStorage{}["https://yoga.org/"] = "875910c4"
 
-	routes, err := ShortenerRoutes("", "")
+	routes, err := ShortenerRoutes("", "", nil)
 	if err != nil {
 		return
 	}
@@ -224,7 +224,7 @@ func Test_getPing(t *testing.T) {
 	psDefault := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
 		`localhost`, `shortener`, `pupupu`, `shortener`)
 
-	routes, err := ShortenerRoutes("", psDefault)
+	routes, err := ShortenerRoutes("", psDefault, nil)
 	if err != nil {
 		return
 	}
