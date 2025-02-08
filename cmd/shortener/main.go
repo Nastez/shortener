@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"errors"
 	"log"
 	"net/http"
@@ -9,10 +11,11 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/Nastez/shortener/config"
-	"github.com/Nastez/shortener/internal/app/handlers/urlhandlers"
 	"github.com/Nastez/shortener/internal/logger"
 	"github.com/Nastez/shortener/internal/saver"
 	"github.com/Nastez/shortener/internal/storage"
+	"github.com/Nastez/shortener/internal/store/pg"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func main() {
@@ -26,48 +29,81 @@ func main() {
 	}
 }
 
+var storeURL = storage.MemoryStorage{}
+
 func run(cfg *config.Config) error {
 	r := chi.NewRouter()
+	if cfg.DatabaseConnectionAddress != "" {
+		// создаём соединение с СУБД PostgreSQL с помощью аргумента командной строки
+		conn, err := sql.Open("pgx", cfg.DatabaseConnectionAddress)
+		if err != nil {
+			return err
+		}
 
-	defer os.Remove(cfg.FileName)
+		// создаём экземпляр приложения, передавая реализацию хранилища pg в качестве внешней зависимости
+		appInstance, err := newApp(pg.NewStore(conn), cfg.BaseURL, cfg.DatabaseConnectionAddress)
+		if err != nil {
+			return err
+		}
+		appInstance.store.Bootstrap(context.Background())
 
-	err := saver.SaveFile(cfg.FileName)
-	if err != nil {
-		return err
+		routes, err := ShortenerRoutes(cfg.BaseURL, *appInstance)
+		if err != nil {
+			return err
+		}
+
+		r.Mount("/", routes)
+	} else if cfg.DatabaseConnectionAddress == "" && cfg.FileName != "events.log" {
+		defer os.Remove(cfg.FileName)
+
+		err := saver.SaveFile(cfg.FileName)
+		if err != nil {
+			return err
+		}
+
+		appInstance, err := newApp(storeURL, cfg.BaseURL, cfg.DatabaseConnectionAddress)
+		if err != nil {
+			return err
+		}
+
+		routes, err := ShortenerRoutes(cfg.BaseURL, *appInstance)
+		if err != nil {
+			return err
+		}
+
+		r.Mount("/", routes)
+	} else if cfg.DatabaseConnectionAddress == "" && cfg.FileName == "events.log" {
+		appInstance, err := newApp(storeURL, cfg.BaseURL, cfg.DatabaseConnectionAddress)
+		if err != nil {
+			return err
+		}
+
+		routes, err := ShortenerRoutes(cfg.BaseURL, *appInstance)
+		if err != nil {
+			return err
+		}
+
+		r.Mount("/", routes)
+
+	} else {
+		logger.Log.Error("can't run app")
 	}
-
-	routes, err := ShortenerRoutes(cfg.BaseURL, cfg.DatabaseConnectionAddress)
-	if err != nil {
-		return err
-	}
-
-	r.Mount("/", routes)
 
 	return http.ListenAndServe(":"+cfg.Port, r)
 }
 
-func ShortenerRoutes(baseAddr string, databaseConnectionAddress string) (chi.Router, error) {
+func ShortenerRoutes(baseAddr string, appInstance app) (chi.Router, error) {
 	r := chi.NewRouter()
-
-	storeURL := storage.MemoryStorage{}
 
 	if baseAddr == "http://localhost:" {
 		return nil, errors.New("port is empty")
 	}
 
-	if databaseConnectionAddress == "" {
-		return nil, errors.New("get databaseConnectionAddress error")
-	}
-
-	handlers, err := urlhandlers.New(storeURL, baseAddr, databaseConnectionAddress)
-	if err != nil {
-		return nil, err
-	}
-
-	r.Post("/", logger.WithLogging(GzipMiddleware(handlers.PostHandler())))
-	r.Get("/{id}", logger.WithLogging(GzipMiddleware(handlers.GetHandler())))
-	r.Post("/api/shorten", logger.WithLogging(GzipMiddleware(handlers.ShortenerHandler())))
-	r.Get("/ping", logger.WithLogging(GzipMiddleware(handlers.GetPing())))
+	r.Post("/", logger.WithLogging(GzipMiddleware(appInstance.PostHandler())))
+	r.Get("/{id}", logger.WithLogging(GzipMiddleware(appInstance.GetHandler())))
+	r.Post("/api/shorten", logger.WithLogging(GzipMiddleware(appInstance.ShortenerHandler())))
+	r.Get("/ping", logger.WithLogging(GzipMiddleware(appInstance.GetPing())))
+	r.Post("/api/shorten/batch", logger.WithLogging(GzipMiddleware(appInstance.PostBatch())))
 
 	return r, nil
 }

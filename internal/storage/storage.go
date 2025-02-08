@@ -1,19 +1,40 @@
-//go:generate mockgen -source=storage.go -destination=mocks/mocks.go
 package storage
+
+import (
+	"context"
+
+	"github.com/Nastez/shortener/internal/app/models"
+	"github.com/Nastez/shortener/internal/store"
+)
 
 type MemoryStorage map[string]string
 
-type URLStorage interface {
-	Save(originalURL string, generatedID string)
-	Get(urlID string) string
+func (m MemoryStorage) Bootstrap(ctx context.Context) error {
+	return nil
 }
 
-func (m MemoryStorage) Save(originalURL string, generatedID string) {
-	m[generatedID] = originalURL
+func (m MemoryStorage) Save(ctx context.Context, url store.URL) error {
+	m[url.GeneratedID] = url.OriginalURL
+
+	return nil
 }
 
-func (m MemoryStorage) Get(urlID string) string {
-	var originalURL = m[urlID]
+func (m MemoryStorage) Get(ctx context.Context, id string) (string, error) {
+	var originalURL = m[id]
 
-	return originalURL
+	return originalURL, nil
+}
+
+func (m MemoryStorage) SaveBatch(ctx context.Context, requestBatch models.PayloadBatch, shortURLBatch models.ResponseBodyBatch) error {
+	var originalURL string
+
+	for _, req := range requestBatch {
+		originalURL = req.OriginalURL
+	}
+
+	for _, b := range shortURLBatch {
+		m[b.CorrelationID] = originalURL
+	}
+
+	return nil
 }

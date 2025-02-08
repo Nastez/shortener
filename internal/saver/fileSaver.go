@@ -23,17 +23,17 @@ type Consumer struct {
 
 var Events = []*models.Event{
 	{
-		UUID:        1,
+		UUID:        "1",
 		ShortURL:    "4rSPg8ap",
 		OriginalURL: "http://yandex.ru",
 	},
 	{
-		UUID:        2,
+		UUID:        "2",
 		ShortURL:    "edVPg3ks",
 		OriginalURL: "http://ya.ru",
 	},
 	{
-		UUID:        3,
+		UUID:        "3",
 		ShortURL:    "dG56Hqxm",
 		OriginalURL: "http://practicum.yandex.ru",
 	},
