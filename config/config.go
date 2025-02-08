@@ -49,13 +49,10 @@ func New() (*Config, error) {
 		databaseConnectionAddress string
 	)
 
-	psDefault := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
-		`localhost`, `shortener`, `k8tego`, `shortener`)
-
 	flag.StringVar(&serverAddress, "a", "localhost:8080", "address and port to run server")
 	flag.StringVar(&baseURL, "b", "http://localhost:8080", "base address before a short URL")
 	flag.StringVar(&fileStoragePath, "f", "events.log", "file storage path")
-	flag.StringVar(&databaseConnectionAddress, "d", psDefault, "database connection address")
+	flag.StringVar(&databaseConnectionAddress, "d", "", "database connection address")
 	// парсим переданные серверу аргументы в зарегистрированные переменные
 	flag.Parse()
 
