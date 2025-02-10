@@ -43,7 +43,7 @@ func Test_postHandler(t *testing.T) {
 	//установим условие: при любом вызове метода Save не возвращались ошибки
 	s.EXPECT().
 		Save(gomock.Any(), gomock.Any()).
-		Return(nil).AnyTimes()
+		Return("", nil).AnyTimes()
 
 	// создадим экземпляр приложения и передадим ему «хранилище»
 	appInstance, err := newApp(s, "http://localhost:0007", "")
@@ -211,7 +211,7 @@ func Test_shortenerHandler(t *testing.T) {
 	//установим условие: при любом вызове метода Save не возвращались ошибки
 	s.EXPECT().
 		Save(gomock.Any(), gomock.Any()).
-		Return(nil).AnyTimes()
+		Return("", nil).AnyTimes()
 
 	// создадим экземпляр приложения и передадим ему «хранилище»
 	appInstance, err := newApp(s, "http://localhost:0007", "")
