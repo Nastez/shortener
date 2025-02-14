@@ -1,4 +1,4 @@
-package storeConfig
+package storeconfig
 
 import (
 	"context"
