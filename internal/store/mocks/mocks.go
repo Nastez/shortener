@@ -8,6 +8,7 @@ import (
 	context "context"
 	reflect "reflect"
 
+	models "github.com/Nastez/shortener/internal/app/models"
 	store "github.com/Nastez/shortener/internal/store"
 	gomock "github.com/golang/mock/gomock"
 )
@@ -76,4 +77,18 @@ func (m *MockStore) Save(ctx context.Context, url store.URL) error {
 func (mr *MockStoreMockRecorder) Save(ctx, url interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockStore)(nil).Save), ctx, url)
+}
+
+// SaveBatch mocks base method.
+func (m *MockStore) SaveBatch(ctx context.Context, requestBatch models.PayloadBatch, shortURLBatch models.ResponseBodyBatch) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SaveBatch", ctx, requestBatch, shortURLBatch)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SaveBatch indicates an expected call of SaveBatch.
+func (mr *MockStoreMockRecorder) SaveBatch(ctx, requestBatch, shortURLBatch interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveBatch", reflect.TypeOf((*MockStore)(nil).SaveBatch), ctx, requestBatch, shortURLBatch)
 }

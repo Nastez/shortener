@@ -325,6 +325,89 @@ func Test_getPing(t *testing.T) {
 	}
 }
 
+func Test_postBatchHandler(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	s := storeMock.NewMockStore(ctrl)
+
+	//установим условие: при любом вызове метода Save не возвращались ошибки
+	s.EXPECT().
+		SaveBatch(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(nil).AnyTimes()
+
+	// создадим экземпляр приложения и передадим ему «хранилище»
+	appInstance, err := newApp(s, "http://localhost:0007", "")
+	if err != nil {
+		assert.Error(t, err)
+	}
+
+	handler := appInstance.PostBatch()
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+
+	body := `[
+    {
+        "correlation_id": "1",
+        "original_url": "http://to1ghmjtw0f.biz"
+    },
+    {
+        "correlation_id": "2",
+        "original_url": "http://to2ghmjtw0f.biz"
+    }
+]`
+
+	type want struct {
+		code        int
+		response    string
+		contentType string
+	}
+
+	tests := []struct {
+		name   string
+		want   want
+		body   string
+		method string
+	}{
+		{
+			name: "success",
+			want: want{
+				code:        http.StatusCreated,
+				contentType: "application/json",
+			},
+			body:   body,
+			method: http.MethodPost,
+		},
+		{
+			name: "incorrect method",
+			want: want{
+				code:        http.StatusMethodNotAllowed,
+				response:    "",
+				contentType: "text/plain; charset=utf-8",
+			},
+			body:   body,
+			method: http.MethodGet,
+		},
+		{
+			name: "request body is empty",
+			want: want{
+				code:        http.StatusInternalServerError,
+				response:    "",
+				contentType: "",
+			},
+			body:   "",
+			method: http.MethodPost,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			resp, _ := testRequest(t, ts, test.method, "/api/shorten", strings.NewReader(test.body))
+			defer resp.Body.Close()
+			assert.Equal(t, test.want.code, resp.StatusCode)
+			assert.Equal(t, test.want.contentType, resp.Header.Get("Content-Type"))
+		})
+	}
+}
+
 //func TestGzipCompression(t *testing.T) {
 //	//var storeURL = storage.MemoryStorage{}
 //

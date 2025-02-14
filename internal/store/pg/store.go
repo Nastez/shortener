@@ -3,6 +3,7 @@ package pg
 import (
 	"context"
 	"database/sql"
+	"github.com/Nastez/shortener/internal/app/models"
 	"github.com/Nastez/shortener/internal/store"
 )
 
@@ -76,4 +77,46 @@ func (s Store) Save(ctx context.Context, urls store.URL) error {
     `, urls.OriginalURL, urls.ShortURL, urls.GeneratedID)
 
 	return err
+}
+
+func (s Store) SaveBatch(ctx context.Context, requestBatch models.PayloadBatch, shortURLBatch models.ResponseBodyBatch) error {
+	// запускаем транзакцию
+	tx, err := s.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	// в случае неуспешного коммита все изменения транзакции будут отменены
+	defer tx.Rollback()
+
+	stmt, err := tx.PrepareContext(ctx,
+		"INSERT INTO urls (short_url, url_id) VALUES ($1, $2)")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	stmtOriginalURL, err := tx.PrepareContext(ctx,
+		"UPDATE urls SET original_url = $1 WHERE url_id = $2")
+	if err != nil {
+		return err
+	}
+	defer stmtOriginalURL.Close()
+
+	for _, b := range shortURLBatch {
+		_, err = stmt.ExecContext(ctx, b.ShortURL, b.CorrelationID)
+		if err != nil {
+			return err
+		}
+		for _, req := range requestBatch {
+			_, err = stmtOriginalURL.ExecContext(ctx, req.OriginalURL, req.CorrelationID)
+			if err != nil {
+				return err
+
+			}
+		}
+	}
+
+	// коммитим транзакцию
+	return tx.Commit()
 }
