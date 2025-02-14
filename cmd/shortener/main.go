@@ -15,6 +15,7 @@ import (
 	"github.com/Nastez/shortener/internal/saver"
 	"github.com/Nastez/shortener/internal/storage"
 	"github.com/Nastez/shortener/internal/store/pg"
+	"github.com/Nastez/shortener/internal/storeConfig"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -43,7 +44,7 @@ func run(cfg *config.Config) error {
 		if err != nil {
 			return err
 		}
-		appInstance.store.Bootstrap(context.Background())
+		storeConfig.NewStoreConfig(conn).Bootstrap(context.Background())
 
 		routes, err := ShortenerRoutes(cfg.BaseURL, *appInstance)
 		if err != nil {
