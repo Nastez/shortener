@@ -32,12 +32,14 @@ func (s Store) Bootstrap(ctx context.Context) error {
 	defer tx.Rollback()
 
 	// создаём таблицу urls и необходимые индексы
-	stmt, err := tx.PrepareContext(ctx,
-		"CREATE TABLE if NOT EXISTS urls (id SERIAL PRIMARY KEY, original_url text UNIQUE, short_url text, url_id text)")
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
+	tx.ExecContext(ctx, `
+       CREATE TABLE if NOT EXISTS urls (
+           id SERIAL PRIMARY KEY,
+           original_url text UNIQUE,
+           short_url text,
+           url_id text
+       )
+    `)
 
 	tx.ExecContext(ctx, `CREATE INDEX url_idx ON urls (url_id)`)
 
