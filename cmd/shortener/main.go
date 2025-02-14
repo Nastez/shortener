@@ -29,8 +29,6 @@ func main() {
 	}
 }
 
-//var storeURL = storage.MemoryStorage{}
-
 func run(cfg *config.Config) error {
 	r := chi.NewRouter()
 	if cfg.DatabaseConnectionAddress != "" {

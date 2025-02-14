@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Nastez/shortener/internal/services"
 	"go.uber.org/zap"
 	"io"
 	"net/http"
@@ -189,7 +190,7 @@ func (a *app) GetHandler() http.HandlerFunc {
 
 func (a *app) PostHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		var shortURL string
+		//var shortURL string
 		ctx := req.Context()
 
 		if req.Method != http.MethodPost {
@@ -211,18 +212,19 @@ func (a *app) PostHandler() http.HandlerFunc {
 
 		defer req.Body.Close()
 
-		generatedID := utils.GenerateID()
-		shortURL = a.baseAddr + "/" + generatedID
+		//generatedID := utils.GenerateID()
+		//shortURL = a.baseAddr + "/" + generatedID
+
+		//oldShortURL, err := a.store.Save(ctx, store.URL{
+		//	OriginalURL: originalURL,
+		//	ShortURL:    shortURL,
+		//	GeneratedID: generatedID,
+		//})
 
 		if a == nil {
 			return
 		}
-
-		oldShortURL, err := a.store.Save(ctx, store.URL{
-			OriginalURL: originalURL,
-			ShortURL:    shortURL,
-			GeneratedID: generatedID,
-		})
+		oldShortURL, shortURL, err := services.SaveURL(ctx, a.baseAddr, a.store, originalURL)
 
 		// наличие неспецифичной ошибки
 		if err != nil && !errors.Is(err, store.ErrConflict) {
