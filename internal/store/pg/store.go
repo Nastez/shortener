@@ -3,7 +3,9 @@ package pg
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"github.com/Nastez/shortener/internal/app/models"
+	"github.com/Nastez/shortener/internal/logger"
 	"github.com/Nastez/shortener/internal/store"
 )
 
@@ -16,33 +18,6 @@ type Store struct {
 // NewStore возвращает новый экземпляр PostgreSQL-хранилища
 func NewStore(conn *sql.DB) *Store {
 	return &Store{conn: conn}
-}
-
-// Bootstrap подготавливает БД к работе, создавая необходимые таблицы и индексы
-func (s Store) Bootstrap(ctx context.Context) error {
-	// запускаем транзакцию
-	tx, err := s.conn.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-
-	// в случае неуспешного коммита все изменения транзакции будут отменены
-	defer tx.Rollback()
-
-	// создаём таблицу urls и необходимые индексы
-	tx.ExecContext(ctx, `
-        CREATE TABLE if NOT EXISTS urls (
-            id SERIAL PRIMARY KEY,
-            original_url text,
-            short_url text,
-            url_id text
-        )
-    `)
-
-	tx.ExecContext(ctx, `CREATE INDEX url_idx ON urls (url_id)`)
-
-	// коммитим транзакцию
-	return tx.Commit()
 }
 
 func (s Store) Get(ctx context.Context, id string) (string, error) {
@@ -67,16 +42,46 @@ func (s Store) Get(ctx context.Context, id string) (string, error) {
 	return originalURL, nil
 }
 
-func (s Store) Save(ctx context.Context, urls store.URL) error {
+func (s Store) Save(ctx context.Context, urls store.URL) (string, error) {
 	// добавляем новую запись с URLs в БД
-	_, err := s.conn.ExecContext(ctx, `
-        INSERT INTO urls
-        (original_url, short_url, url_id)
-        VALUES
-        ($1, $2, $3)
+	res, err := s.conn.ExecContext(ctx, `
+        INSERT INTO urls (original_url, short_url, url_id)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (original_url) DO NOTHING
     `, urls.OriginalURL, urls.ShortURL, urls.GeneratedID)
+	if err != nil {
+		return "", fmt.Errorf("insert error: %w", err)
+	}
 
-	return err
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return "", fmt.Errorf("RowsAffected error: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		// проверяем, что ошибка сигнализирует о потенциальном нарушении целостности данных
+		dataConflictErr := store.ErrConflict
+		row := s.conn.QueryRowContext(ctx, `
+			   SELECT
+			       short_url
+			   FROM urls
+			   WHERE
+			       original_url = $1
+			`,
+			urls.OriginalURL,
+		)
+		// считываем значения из записи БД в соответствующие поля структуры
+		var oldShortURL string
+		err = row.Scan(&oldShortURL) // разбираем результат
+		if err != nil {
+			logger.Log.Error("scan error")
+		}
+
+		return oldShortURL, dataConflictErr
+
+	}
+
+	return "", err
 }
 
 func (s Store) SaveBatch(ctx context.Context, requestBatch models.PayloadBatch, shortURLBatch models.ResponseBodyBatch) error {

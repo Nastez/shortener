@@ -66,11 +66,12 @@ func (mr *MockStoreMockRecorder) Get(ctx, id interface{}) *gomock.Call {
 }
 
 // Save mocks base method.
-func (m *MockStore) Save(ctx context.Context, url store.URL) error {
+func (m *MockStore) Save(ctx context.Context, url store.URL) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Save", ctx, url)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Save indicates an expected call of Save.

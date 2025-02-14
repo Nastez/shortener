@@ -15,6 +15,7 @@ import (
 	"github.com/Nastez/shortener/internal/saver"
 	"github.com/Nastez/shortener/internal/storage"
 	"github.com/Nastez/shortener/internal/store/pg"
+	"github.com/Nastez/shortener/internal/storeconfig"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -28,8 +29,6 @@ func main() {
 		panic(err)
 	}
 }
-
-var storeURL = storage.MemoryStorage{}
 
 func run(cfg *config.Config) error {
 	r := chi.NewRouter()
@@ -45,7 +44,7 @@ func run(cfg *config.Config) error {
 		if err != nil {
 			return err
 		}
-		appInstance.store.Bootstrap(context.Background())
+		storeconfig.NewStoreConfig(conn).Bootstrap(context.Background())
 
 		routes, err := ShortenerRoutes(cfg.BaseURL, *appInstance)
 		if err != nil {
@@ -61,7 +60,7 @@ func run(cfg *config.Config) error {
 			return err
 		}
 
-		appInstance, err := newApp(storeURL, cfg.BaseURL, cfg.DatabaseConnectionAddress)
+		appInstance, err := newApp(storage.New(), cfg.BaseURL, cfg.DatabaseConnectionAddress)
 		if err != nil {
 			return err
 		}
@@ -73,7 +72,7 @@ func run(cfg *config.Config) error {
 
 		r.Mount("/", routes)
 	} else if cfg.DatabaseConnectionAddress == "" && cfg.FileName == "events.log" {
-		appInstance, err := newApp(storeURL, cfg.BaseURL, cfg.DatabaseConnectionAddress)
+		appInstance, err := newApp(storage.New(), cfg.BaseURL, cfg.DatabaseConnectionAddress)
 		if err != nil {
 			return err
 		}

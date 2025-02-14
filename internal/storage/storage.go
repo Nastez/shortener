@@ -9,14 +9,14 @@ import (
 
 type MemoryStorage map[string]string
 
-func (m MemoryStorage) Bootstrap(ctx context.Context) error {
-	return nil
+func New() *MemoryStorage {
+	return &MemoryStorage{}
 }
 
-func (m MemoryStorage) Save(ctx context.Context, url store.URL) error {
+func (m MemoryStorage) Save(ctx context.Context, url store.URL) (string, error) {
 	m[url.GeneratedID] = url.OriginalURL
 
-	return nil
+	return "", nil
 }
 
 func (m MemoryStorage) Get(ctx context.Context, id string) (string, error) {

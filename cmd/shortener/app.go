@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Nastez/shortener/internal/services"
 	"go.uber.org/zap"
 	"io"
 	"net/http"
@@ -16,7 +17,6 @@ import (
 	"github.com/Nastez/shortener/internal/app/models"
 	"github.com/Nastez/shortener/internal/logger"
 	"github.com/Nastez/shortener/internal/store"
-	"github.com/Nastez/shortener/utils"
 )
 
 // app инкапсулирует в себя все зависимости и логику приложения
@@ -40,7 +40,6 @@ func newApp(s store.Store, baseAddr string, databaseConnectionAddress string) (*
 }
 
 // GetPing проверяет соединение с базой данных
-
 func (a *app) GetPing() http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet {
@@ -92,39 +91,58 @@ func (a *app) ShortenerHandler() http.HandlerFunc {
 			return
 		}
 
-		var shortURL string
 		originalURL := request.URL
-		generatedID := utils.GenerateID()
-		shortURL = a.baseAddr + "/" + generatedID
-
-		err := a.store.Save(ctx, store.URL{
-			OriginalURL: originalURL,
-			ShortURL:    shortURL,
-			GeneratedID: generatedID,
-		})
-		if err != nil {
-			logger.Log.Info("beda")
-			fmt.Println(err)
+		oldShortURL, shortURL, err := services.SaveURL(ctx, a.baseAddr, a.store, originalURL)
+		// наличие неспецифичной ошибки
+		if err != nil && !errors.Is(err, store.ErrConflict) {
+			logger.Log.Debug("cannot save urls in the store", zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		// заполняем модель ответа
-		resp := models.Response{
-			Result: shortURL,
-		}
+		var resp models.Response
 
-		// устанавливаем заголовок Content-Type
-		w.Header().Set("Content-Type", "application/json")
-		// устанавливаем код 201
-		w.WriteHeader(http.StatusCreated)
+		if errors.Is(err, store.ErrConflict) {
+			// ошибка специфична
+			if oldShortURL == "" {
+				logger.Log.Warn("oldShortURL is empty")
+			}
 
-		// сериализуем ответ сервера
-		enc := json.NewEncoder(w)
-		if err := enc.Encode(resp); err != nil {
-			logger.Log.Info("error encoding response", zap.Error(err))
+			// заполняем модель ответа
+			resp = models.Response{
+				Result: oldShortURL,
+			}
+
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			// устанавливаем код 409
+			w.WriteHeader(http.StatusConflict)
+			// сериализуем ответ сервера
+			enc := json.NewEncoder(w)
+			if err = enc.Encode(resp); err != nil {
+				logger.Log.Info("error encoding response", zap.Error(err))
+				return
+			}
+			logger.Log.Info("sending HTTP 409 response")
 			return
+		} else if err == nil {
+			// заполняем модель ответа
+			resp = models.Response{
+				Result: shortURL,
+			}
+
+			// устанавливаем заголовок Content-Type
+			w.Header().Set("Content-Type", "application/json")
+			// устанавливаем код 201
+			w.WriteHeader(http.StatusCreated)
+			// сериализуем ответ сервера
+
+			enc := json.NewEncoder(w)
+			if err := enc.Encode(resp); err != nil {
+				logger.Log.Info("error encoding response", zap.Error(err))
+				return
+			}
+			logger.Log.Info("sending HTTP 201 response")
 		}
-		logger.Log.Info("sending HTTP 201 response")
 	}
 }
 
@@ -142,7 +160,6 @@ func (a *app) GetHandler() http.HandlerFunc {
 			return
 		}
 
-		//var originalURL = a.store.Get(urlID)
 		originalURL, err := a.store.Get(ctx, urlID)
 		if err != nil {
 			fmt.Println(err)
@@ -163,7 +180,6 @@ func (a *app) GetHandler() http.HandlerFunc {
 
 func (a *app) PostHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		var shortURL string
 		ctx := req.Context()
 
 		if req.Method != http.MethodPost {
@@ -185,30 +201,70 @@ func (a *app) PostHandler() http.HandlerFunc {
 
 		defer req.Body.Close()
 
-		generatedID := utils.GenerateID()
-		shortURL = a.baseAddr + "/" + generatedID
-
 		if a == nil {
 			return
 		}
+		oldShortURL, shortURL, err := services.SaveURL(ctx, a.baseAddr, a.store, originalURL)
 
-		err = a.store.Save(ctx, store.URL{
-			OriginalURL: originalURL,
-			ShortURL:    shortURL,
-			GeneratedID: generatedID,
-		})
-		if err != nil {
-			logger.Log.Info("beda in post")
-			fmt.Println(err)
+		// наличие неспецифичной ошибки
+		if err != nil && !errors.Is(err, store.ErrConflict) {
+			logger.Log.Debug("cannot save urls in the store", zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-
+		if errors.Is(err, store.ErrConflict) {
+			// ошибка специфична
+			// устанавливаем заголовок Content-Type
+			w.Header().Set("Content-Type", "text/plain")
+			// устанавливаем код 409
+			w.WriteHeader(http.StatusConflict)
+			// пишем старый короткий url в тело ответа
+			w.Write([]byte(oldShortURL))
+			return
+		}
 		// устанавливаем заголовок Content-Type
 		w.Header().Set("Content-Type", "text/plain")
 		// устанавливаем код 201
 		w.WriteHeader(http.StatusCreated)
 		// пишем тело ответа
 		w.Write([]byte(shortURL))
+
+	}
+}
+
+func (a *app) PostBatch() http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
+
+		if req.Method != http.MethodPost {
+			http.Error(w, "Only POST requests are allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// десериализуем запрос в структуру модели
+		logger.Log.Info("decoding request")
+		var requestBatch models.PayloadBatch
+		dec := json.NewDecoder(req.Body)
+		if err := dec.Decode(&requestBatch); err != nil {
+			logger.Log.Info("cannot decode request JSON body", zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		responseBatch := services.SaveBatchURL(ctx, requestBatch, a.baseAddr, a.store)
+
+		// устанавливаем заголовок Content-Type
+		w.Header().Set("Content-Type", "application/json")
+		// устанавливаем код 201
+		w.WriteHeader(http.StatusCreated)
+
+		// сериализуем ответ сервера
+		enc := json.NewEncoder(w)
+		if err := enc.Encode(responseBatch); err != nil {
+			logger.Log.Info("error encoding response", zap.Error(err))
+			return
+		}
+		logger.Log.Info("sending HTTP 201 response")
 	}
 }
 
