@@ -267,3 +267,58 @@ func (a *app) PostBatch() http.HandlerFunc {
 		logger.Log.Info("sending HTTP 201 response")
 	}
 }
+
+func (a *app) PostBatch() http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
+
+		if req.Method != http.MethodPost {
+			http.Error(w, "Only POST requests are allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// десериализуем запрос в структуру модели
+		logger.Log.Info("decoding request")
+		var requestBatch models.PayloadBatch
+		dec := json.NewDecoder(req.Body)
+		if err := dec.Decode(&requestBatch); err != nil {
+			logger.Log.Info("cannot decode request JSON body", zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		var responseBatch models.ResponseBodyBatch
+
+		for _, request := range requestBatch {
+			var response = models.ResponseBatch{
+				CorrelationID: request.CorrelationID,
+				ShortURL:      a.baseAddr + "/" + request.CorrelationID,
+			}
+			responseBatch = append(responseBatch, response)
+		}
+
+		if len(responseBatch) > 0 {
+			err := a.store.SaveBatch(ctx, requestBatch, responseBatch)
+			if err != nil {
+				logger.Log.Info("can't save batch in store")
+				fmt.Println(err)
+				return
+			}
+		} else {
+			logger.Log.Info("responseBatch is empty")
+		}
+
+		// устанавливаем заголовок Content-Type
+		w.Header().Set("Content-Type", "application/json")
+		// устанавливаем код 201
+		w.WriteHeader(http.StatusCreated)
+
+		// сериализуем ответ сервера
+		enc := json.NewEncoder(w)
+		if err := enc.Encode(responseBatch); err != nil {
+			logger.Log.Info("error encoding response", zap.Error(err))
+			return
+		}
+		logger.Log.Info("sending HTTP 201 response")
+	}
+}
