@@ -9,6 +9,10 @@ import (
 
 type MemoryStorage map[string]string
 
+func New() *MemoryStorage {
+	return &MemoryStorage{}
+}
+
 func (m MemoryStorage) Bootstrap(ctx context.Context) error {
 	return nil
 }

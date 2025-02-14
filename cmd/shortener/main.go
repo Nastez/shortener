@@ -29,7 +29,7 @@ func main() {
 	}
 }
 
-var storeURL = storage.MemoryStorage{}
+//var storeURL = storage.MemoryStorage{}
 
 func run(cfg *config.Config) error {
 	r := chi.NewRouter()
@@ -61,7 +61,7 @@ func run(cfg *config.Config) error {
 			return err
 		}
 
-		appInstance, err := newApp(storeURL, cfg.BaseURL, cfg.DatabaseConnectionAddress)
+		appInstance, err := newApp(storage.New(), cfg.BaseURL, cfg.DatabaseConnectionAddress)
 		if err != nil {
 			return err
 		}
@@ -73,7 +73,7 @@ func run(cfg *config.Config) error {
 
 		r.Mount("/", routes)
 	} else if cfg.DatabaseConnectionAddress == "" && cfg.FileName == "events.log" {
-		appInstance, err := newApp(storeURL, cfg.BaseURL, cfg.DatabaseConnectionAddress)
+		appInstance, err := newApp(storage.New(), cfg.BaseURL, cfg.DatabaseConnectionAddress)
 		if err != nil {
 			return err
 		}
