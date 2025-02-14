@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -37,7 +38,7 @@ func testRequest(t *testing.T, ts *httptest.Server, method,
 func Test_postHandler(t *testing.T) {
 	storage.MemoryStorage{}["https://yoga.org/"] = "875910c4"
 
-	routes, err := ShortenerRoutes("")
+	routes, err := ShortenerRoutes("", "")
 	if err != nil {
 		return
 	}
@@ -102,7 +103,7 @@ func Test_getHandler(t *testing.T) {
 	id := "875910c4"
 	storage.MemoryStorage{}["https://yoga.org/"] = "875910c4"
 
-	routes, err := ShortenerRoutes("")
+	routes, err := ShortenerRoutes("", "")
 	if err != nil {
 		return
 	}
@@ -158,7 +159,7 @@ func Test_getHandler(t *testing.T) {
 func Test_shortenerHandler(t *testing.T) {
 	storage.MemoryStorage{}["https://yoga.org/"] = "875910c4"
 
-	routes, err := ShortenerRoutes("")
+	routes, err := ShortenerRoutes("", "")
 	if err != nil {
 		return
 	}
@@ -219,10 +220,58 @@ func Test_shortenerHandler(t *testing.T) {
 	}
 }
 
-func TestGzipCompression2(t *testing.T) {
+func Test_getPing(t *testing.T) {
+	psDefault := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
+		`localhost`, `shortener`, `pupupu`, `shortener`)
+
+	routes, err := ShortenerRoutes("", psDefault)
+	if err != nil {
+		return
+	}
+
+	ts := httptest.NewServer(routes)
+	defer ts.Close()
+
+	type want struct {
+		code     int
+		response string
+	}
+
+	tests := []struct {
+		name   string
+		want   want
+		method string
+	}{
+		{
+			name: "success",
+			want: want{
+				code: http.StatusOK,
+			},
+			method: http.MethodGet,
+		},
+		{
+			name: "incorrect method",
+			want: want{
+				code:     http.StatusMethodNotAllowed,
+				response: "",
+			},
+			method: http.MethodPost,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			resp, _ := testRequest(t, ts, test.method, "/ping", nil)
+			defer resp.Body.Close()
+			assert.Equal(t, test.want.code, resp.StatusCode)
+		})
+	}
+}
+
+func TestGzipCompression(t *testing.T) {
 	var storeURL = storage.MemoryStorage{}
 
-	handler, err := urlhandlers.New(storeURL, "http://localhost:8080")
+	handler, err := urlhandlers.New(storeURL, "http://localhost:8080", "")
 	if err != nil {
 		return
 	}

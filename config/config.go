@@ -12,18 +12,21 @@ import (
 	"github.com/caarlos0/env/v6"
 )
 
+// Env Переменные окружения
 type Env struct {
-	ServerAddress   string `env:"SERVER_ADDRESS"`
-	BaseURL         string `env:"BASE_URL"`
-	FileStoragePath string `env:"FILE_STORAGE_PATH"`
+	ServerAddress             string `env:"SERVER_ADDRESS"`
+	BaseURL                   string `env:"BASE_URL"`
+	FileStoragePath           string `env:"FILE_STORAGE_PATH"`
+	DatabaseConnectionAddress string `env:"DATABASE_DSN"`
 }
 
 type Config struct {
-	ServerAddress   string
-	BaseURL         string
-	FileStoragePath string
-	Port            string
-	FileName        string
+	ServerAddress             string
+	BaseURL                   string
+	FileStoragePath           string
+	Port                      string
+	FileName                  string
+	DatabaseConnectionAddress string
 }
 
 // New обрабатывает аргументы командной строки
@@ -38,16 +41,21 @@ func New() (*Config, error) {
 	log.Println(envConf)
 
 	var (
-		serverAddress   string
-		baseURL         string
-		fileStoragePath string
-		port            string
-		fileName        string
+		serverAddress             string
+		baseURL                   string
+		fileStoragePath           string
+		port                      string
+		fileName                  string
+		databaseConnectionAddress string
 	)
+
+	psDefault := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
+		`localhost`, `shortener`, `k8tego`, `shortener`)
 
 	flag.StringVar(&serverAddress, "a", "localhost:8080", "address and port to run server")
 	flag.StringVar(&baseURL, "b", "http://localhost:8080", "base address before a short URL")
 	flag.StringVar(&fileStoragePath, "f", "events.log", "file storage path")
+	flag.StringVar(&databaseConnectionAddress, "d", psDefault, "database connection address")
 	// парсим переданные серверу аргументы в зарегистрированные переменные
 	flag.Parse()
 
@@ -71,6 +79,10 @@ func New() (*Config, error) {
 		fileName = fileStoragePath
 	}
 
+	if envConf.DatabaseConnectionAddress != "" {
+		databaseConnectionAddress = envConf.DatabaseConnectionAddress
+	}
+
 	if baseURL == "http://localhost:" || baseURL == "http://localhost:/" {
 		fmt.Fprintf(os.Stderr, "Invalid base address: %s (must has format http://localhost:8080/)\n", baseURL)
 		os.Exit(1)
@@ -83,11 +95,12 @@ func New() (*Config, error) {
 	}
 
 	return &Config{
-		ServerAddress:   serverAddress,
-		BaseURL:         baseURL,
-		FileStoragePath: fileStoragePath,
-		Port:            port,
-		FileName:        fileName,
+		ServerAddress:             serverAddress,
+		BaseURL:                   baseURL,
+		FileStoragePath:           fileStoragePath,
+		Port:                      port,
+		FileName:                  fileName,
+		DatabaseConnectionAddress: databaseConnectionAddress,
 	}, nil
 }
 

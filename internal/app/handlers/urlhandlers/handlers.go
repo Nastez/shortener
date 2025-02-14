@@ -1,14 +1,19 @@
 package urlhandlers
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
+	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/go-chi/chi/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/Nastez/shortener/internal/app/models"
 	"github.com/Nastez/shortener/internal/logger"
@@ -17,11 +22,12 @@ import (
 )
 
 type URLHandler struct {
-	storage  storage.URLStorage
-	baseAddr string
+	storage                   storage.URLStorage
+	baseAddr                  string
+	databaseConnectionAddress string
 }
 
-func New(storage storage.URLStorage, baseAddr string) (*URLHandler, error) {
+func New(storage storage.URLStorage, baseAddr string, databaseConnectionAddress string) (*URLHandler, error) {
 	if storage == nil {
 		return nil, errors.New("storage is empty")
 	}
@@ -30,9 +36,14 @@ func New(storage storage.URLStorage, baseAddr string) (*URLHandler, error) {
 		return nil, errors.New("baseAddr is empty")
 	}
 
+	if databaseConnectionAddress == "" {
+		return nil, errors.New("databaseConnectionAddress is empty")
+	}
+
 	return &URLHandler{
-		storage:  storage,
-		baseAddr: baseAddr,
+		storage:                   storage,
+		baseAddr:                  baseAddr,
+		databaseConnectionAddress: databaseConnectionAddress,
 	}, nil
 }
 
@@ -139,5 +150,31 @@ func (h *URLHandler) ShortenerHandler() http.HandlerFunc {
 			return
 		}
 		logger.Log.Info("sending HTTP 201 response")
+	}
+}
+
+// GetPing проверяет соединение с базой данных
+func (h *URLHandler) GetPing() http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		if req.Method != http.MethodGet {
+			logger.Log.Info("got request with bad method", zap.String("method", req.Method))
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			http.Error(w, "Only GET requests are allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		db, err := sql.Open("pgx", h.databaseConnectionAddress)
+		if err != nil {
+			panic(err)
+		}
+		defer db.Close()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+		if err = db.PingContext(ctx); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
 	}
 }
