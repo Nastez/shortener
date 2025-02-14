@@ -17,7 +17,6 @@ import (
 	"github.com/Nastez/shortener/internal/app/models"
 	"github.com/Nastez/shortener/internal/logger"
 	"github.com/Nastez/shortener/internal/store"
-	"github.com/Nastez/shortener/utils"
 )
 
 // app инкапсулирует в себя все зависимости и логику приложения
@@ -92,16 +91,8 @@ func (a *app) ShortenerHandler() http.HandlerFunc {
 			return
 		}
 
-		var shortURL string
 		originalURL := request.URL
-		generatedID := utils.GenerateID()
-		shortURL = a.baseAddr + "/" + generatedID
-
-		oldShortURL, err := a.store.Save(ctx, store.URL{
-			OriginalURL: originalURL,
-			ShortURL:    shortURL,
-			GeneratedID: generatedID,
-		})
+		oldShortURL, shortURL, err := services.SaveURL(ctx, a.baseAddr, a.store, originalURL)
 		// наличие неспецифичной ошибки
 		if err != nil && !errors.Is(err, store.ErrConflict) {
 			logger.Log.Debug("cannot save urls in the store", zap.Error(err))
@@ -169,7 +160,6 @@ func (a *app) GetHandler() http.HandlerFunc {
 			return
 		}
 
-		//var originalURL = a.store.Get(urlID)
 		originalURL, err := a.store.Get(ctx, urlID)
 		if err != nil {
 			fmt.Println(err)
@@ -190,7 +180,6 @@ func (a *app) GetHandler() http.HandlerFunc {
 
 func (a *app) PostHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		//var shortURL string
 		ctx := req.Context()
 
 		if req.Method != http.MethodPost {
@@ -211,15 +200,6 @@ func (a *app) PostHandler() http.HandlerFunc {
 		}
 
 		defer req.Body.Close()
-
-		//generatedID := utils.GenerateID()
-		//shortURL = a.baseAddr + "/" + generatedID
-
-		//oldShortURL, err := a.store.Save(ctx, store.URL{
-		//	OriginalURL: originalURL,
-		//	ShortURL:    shortURL,
-		//	GeneratedID: generatedID,
-		//})
 
 		if a == nil {
 			return
@@ -271,26 +251,28 @@ func (a *app) PostBatch() http.HandlerFunc {
 			return
 		}
 
-		var responseBatch models.ResponseBodyBatch
+		//var responseBatch models.ResponseBodyBatch
 
-		for _, request := range requestBatch {
-			var response = models.ResponseBatch{
-				CorrelationID: request.CorrelationID,
-				ShortURL:      a.baseAddr + "/" + request.CorrelationID,
-			}
-			responseBatch = append(responseBatch, response)
-		}
+		//for _, request := range requestBatch {
+		//	var response = models.ResponseBatch{
+		//		CorrelationID: request.CorrelationID,
+		//		ShortURL:      a.baseAddr + "/" + request.CorrelationID,
+		//	}
+		//	responseBatch = append(responseBatch, response)
+		//}
 
-		if len(responseBatch) > 0 {
-			err := a.store.SaveBatch(ctx, requestBatch, responseBatch)
-			if err != nil {
-				logger.Log.Info("can't save batch in store")
-				fmt.Println(err)
-				return
-			}
-		} else {
-			logger.Log.Info("responseBatch is empty")
-		}
+		responseBatch := services.SaveBatchURL(ctx, requestBatch, a.baseAddr, a.store)
+
+		//if len(responseBatch) > 0 {
+		//	err := a.store.SaveBatch(ctx, requestBatch, responseBatch)
+		//	if err != nil {
+		//		logger.Log.Info("can't save batch in store")
+		//		fmt.Println(err)
+		//		return
+		//	}
+		//} else {
+		//	logger.Log.Info("responseBatch is empty")
+		//}
 
 		// устанавливаем заголовок Content-Type
 		w.Header().Set("Content-Type", "application/json")
