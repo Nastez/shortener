@@ -275,25 +275,6 @@ func (a *app) PostBatch() http.HandlerFunc {
 
 		responseBatch := services.SaveBatchURL(ctx, requestBatch, a.baseAddr, a.store, userID)
 
-		//for _, request := range requestBatch {
-		//	var response = models.ResponseBatch{
-		//		CorrelationID: request.CorrelationID,
-		//		ShortURL:      a.baseAddr + "/" + request.CorrelationID,
-		//	}
-		//	responseBatch = append(responseBatch, response)
-		//}
-		//
-		//if len(responseBatch) > 0 {
-		//	err := a.store.SaveBatch(ctx, requestBatch, responseBatch, userID)
-		//	if err != nil {
-		//		logger.Log.Info("can't save batch in store")
-		//		fmt.Println(err)
-		//		return
-		//	}
-		//} else {
-		//	logger.Log.Info("responseBatch is empty")
-		//}
-
 		// устанавливаем заголовок Content-Type
 		w.Header().Set("Content-Type", "application/json")
 		// устанавливаем код 201
