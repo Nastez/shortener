@@ -103,6 +103,7 @@ func ShortenerRoutes(baseAddr string, appInstance app) (chi.Router, error) {
 	r.Post("/api/shorten", logger.WithLogging(GzipMiddleware(appInstance.ShortenerHandler())))
 	r.Get("/ping", logger.WithLogging(GzipMiddleware(appInstance.GetPing())))
 	r.Post("/api/shorten/batch", logger.WithLogging(GzipMiddleware(appInstance.PostBatch())))
+	r.Get("/api/user/urls", logger.WithLogging(GzipMiddleware(appInstance.GetAuth())))
 
 	return r, nil
 }

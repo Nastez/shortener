@@ -42,7 +42,7 @@ func Test_postHandler(t *testing.T) {
 
 	//установим условие: при любом вызове метода Save не возвращались ошибки
 	s.EXPECT().
-		Save(gomock.Any(), gomock.Any()).
+		Save(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return("", nil).AnyTimes()
 
 	// создадим экземпляр приложения и передадим ему «хранилище»
@@ -210,7 +210,7 @@ func Test_shortenerHandler(t *testing.T) {
 
 	//установим условие: при любом вызове метода Save не возвращались ошибки
 	s.EXPECT().
-		Save(gomock.Any(), gomock.Any()).
+		Save(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return("", nil).AnyTimes()
 
 	// создадим экземпляр приложения и передадим ему «хранилище»
@@ -331,7 +331,7 @@ func Test_postBatchHandler(t *testing.T) {
 
 	//установим условие: при любом вызове метода Save не возвращались ошибки
 	s.EXPECT().
-		SaveBatch(gomock.Any(), gomock.Any(), gomock.Any()).
+		SaveBatch(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(nil).AnyTimes()
 
 	// создадим экземпляр приложения и передадим ему «хранилище»
@@ -401,6 +401,66 @@ func Test_postBatchHandler(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			resp, _ := testRequest(t, ts, test.method, "/api/shorten", strings.NewReader(test.body))
+			defer resp.Body.Close()
+			assert.Equal(t, test.want.code, resp.StatusCode)
+			assert.Equal(t, test.want.contentType, resp.Header.Get("Content-Type"))
+		})
+	}
+}
+
+func Test_getURLSHandler(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	s := storeMock.NewMockStore(ctrl)
+
+	//установим условие: при любом вызове метода GetURLs не возвращались ошибки
+	s.EXPECT().
+		GetURLs(gomock.Any(), gomock.Any()).
+		Return(nil, nil).AnyTimes()
+
+	// создадим экземпляр приложения и передадим ему «хранилище»
+	appInstance, err := newApp(s, "http://localhost:0007", "")
+	if err != nil {
+		assert.Error(t, err)
+	}
+
+	handler := appInstance.GetAuth()
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+
+	type want struct {
+		code        int
+		response    string
+		contentType string
+	}
+
+	tests := []struct {
+		name   string
+		want   want
+		method string
+	}{
+		{
+			name: "content is empty",
+			want: want{
+				code:        http.StatusNoContent,
+				contentType: "",
+			},
+
+			method: http.MethodGet,
+		},
+		{
+			name: "incorrect method",
+			want: want{
+				code:        http.StatusMethodNotAllowed,
+				response:    "",
+				contentType: "text/plain; charset=utf-8",
+			},
+			method: http.MethodPost,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			resp, _ := testRequest(t, ts, test.method, "/api/user/urls", nil)
 			defer resp.Body.Close()
 			assert.Equal(t, test.want.code, resp.StatusCode)
 			assert.Equal(t, test.want.contentType, resp.Header.Get("Content-Type"))
