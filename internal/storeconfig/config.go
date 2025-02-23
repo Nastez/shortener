@@ -33,7 +33,8 @@ func (s StoreConfig) Bootstrap(ctx context.Context) error {
            original_url text UNIQUE,
            short_url text,
            url_id text,
-           user_id text
+           user_id text,
+           is_deleted boolean NOT NULL DEFAULT FALSE
        )
     `)
 

@@ -168,7 +168,7 @@ func (a *app) GetHandler() http.HandlerFunc {
 			return
 		}
 
-		originalURL, err := a.store.Get(ctx, urlID)
+		originalURL, isDeleted, err := a.store.Get(ctx, urlID)
 		if err != nil {
 			fmt.Println(err)
 			logger.Log.Debug("cannot get originalURL", zap.String("originalURL", originalURL), zap.Error(err))
@@ -176,13 +176,17 @@ func (a *app) GetHandler() http.HandlerFunc {
 			return
 		}
 
-		fmt.Println("originalURL", originalURL)
-
-		// устанавливаем заголовок Location
-		w.Header().Set("Location", originalURL)
-		fmt.Println("test originalURL", originalURL)
-		// устанавливаем код 307
-		w.WriteHeader(http.StatusTemporaryRedirect)
+		if isDeleted {
+			// устанавливаем заголовок Location
+			w.Header().Set("Location", originalURL)
+			// устанавливаем код 410
+			w.WriteHeader(http.StatusGone)
+		} else {
+			// устанавливаем заголовок Location
+			w.Header().Set("Location", originalURL)
+			// устанавливаем код 307
+			w.WriteHeader(http.StatusTemporaryRedirect)
+		}
 	}
 }
 
@@ -330,5 +334,46 @@ func (a *app) GetAuth() http.HandlerFunc {
 			return
 		}
 		logger.Log.Info("sending HTTP 201 response")
+	}
+}
+
+func (a *app) DeleteURLs() http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
+
+		if req.Method != http.MethodDelete {
+			http.Error(w, "Only Delete requests are allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		userID, err := auth.WithAuth(w, req)
+		if err != nil {
+			logger.Log.Info("user is unauthorized")
+			w.WriteHeader(http.StatusUnauthorized)
+			http.Error(w, "user is unauthorized", http.StatusUnauthorized)
+		}
+
+		// десериализуем запрос в структуру модели
+		logger.Log.Info("decoding request")
+		var request []string
+		dec := json.NewDecoder(req.Body)
+		if err := dec.Decode(&request); err != nil {
+			logger.Log.Info("cannot decode request JSON body", zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		err = a.store.DeleteURLs(ctx, userID, request)
+		if err != nil {
+			logger.Log.Info("request to delete is failed", zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		// устанавливаем заголовок Content-Type
+		w.Header().Set("Content-Type", "application/json")
+
+		// устанавливаем код 202
+		w.WriteHeader(http.StatusAccepted)
 	}
 }

@@ -139,7 +139,7 @@ func Test_getHandler(t *testing.T) {
 	//установим условие: при любом вызове метода Get не возвращались ошибки
 	s.EXPECT().
 		Get(gomock.Any(), id).
-		Return("875910c4", nil).AnyTimes()
+		Return("875910c4", false, nil).AnyTimes()
 
 	// создадим экземпляр приложения и передадим ему «хранилище»
 	appInstance, err := newApp(store, "http://localhost:0007", "")
@@ -329,7 +329,7 @@ func Test_postBatchHandler(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	s := storeMock.NewMockStore(ctrl)
 
-	//установим условие: при любом вызове метода Save не возвращались ошибки
+	//установим условие: при любом вызове метода SaveBatch не возвращались ошибки
 	s.EXPECT().
 		SaveBatch(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(nil).AnyTimes()
@@ -468,75 +468,73 @@ func Test_getURLSHandler(t *testing.T) {
 	}
 }
 
-//func TestGzipCompression(t *testing.T) {
-//	//var storeURL = storage.MemoryStorage{}
-//
-//	//handler, err := urlhandlers.New(storeURL, "http://localhost:8080", "")
-//	//if err != nil {
-//	//	return
-//	//}
-//
-//	ctrl := gomock.NewController(t)
-//	s := storeMock.NewMockStore(ctrl)
-//
-//	//установим условие: при любом вызове метода Save не возвращались ошибки
-//	s.EXPECT().
-//		Save(gomock.Any(), gomock.Any()).
-//		Return(nil).AnyTimes()
-//
-//	// создадим экземпляр приложения и передадим ему «хранилище»
-//	appInstance, err := newApp(s, "http://localhost:0007", "")
-//	if err != nil {
-//		assert.Error(t, err)
-//	}
-//
-//	handler := appInstance.PostHandler()
-//	ts := httptest.NewServer(handler)
-//	defer ts.Close()
-//
-//	requestBody := `{"url":"https://yoga.org/"}`
-//
-//	t.Run("sends_gzip", func(t *testing.T) {
-//		buf := bytes.NewBuffer(nil)
-//		zb := gzip.NewWriter(buf)
-//		_, err := zb.Write([]byte(requestBody))
-//		require.NoError(t, err)
-//		err = zb.Close()
-//		require.NoError(t, err)
-//
-//		r := httptest.NewRequest("POST", ts.URL, buf)
-//		r.RequestURI = ""
-//		r.Header.Set("Content-Encoding", "gzip")
-//		r.Header.Set("Content-Type", "application/json")
-//		r.Header.Set("Accept-Encoding", "")
-//
-//		resp, err := http.DefaultClient.Do(r)
-//		require.NoError(t, err)
-//		require.Equal(t, http.StatusCreated, resp.StatusCode)
-//
-//		defer resp.Body.Close()
-//
-//		_, err = io.ReadAll(resp.Body)
-//		require.NoError(t, err)
-//	})
-//
-//	t.Run("accepts_gzip", func(t *testing.T) {
-//		buf := bytes.NewBufferString(requestBody)
-//		r := httptest.NewRequest("POST", ts.URL, buf)
-//		r.RequestURI = ""
-//		r.Header.Set("Accept-Encoding", "gzip")
-//		r.Header.Set("Content-Type", "application/json")
-//
-//		resp, err := http.DefaultClient.Do(r)
-//		require.NoError(t, err)
-//		require.Equal(t, http.StatusCreated, resp.StatusCode)
-//
-//		defer resp.Body.Close()
-//
-//		zr, err := gzip.NewReader(resp.Body)
-//		require.NoError(t, err)
-//
-//		_, err = io.ReadAll(zr)
-//		require.NoError(t, err)
-//	})
-//}
+func Test_deleteURLs(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	s := storeMock.NewMockStore(ctrl)
+
+	//установим условие: при любом вызове метода DeleteURLs не возвращались ошибки
+	s.EXPECT().DeleteURLs(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(nil).AnyTimes()
+
+	// создадим экземпляр приложения и передадим ему «хранилище»
+	appInstance, err := newApp(s, "http://localhost:0007", "")
+	if err != nil {
+		assert.Error(t, err)
+	}
+
+	handler := appInstance.DeleteURLs()
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+
+	body := `["1", "2", "3"]`
+
+	type want struct {
+		code        int
+		response    string
+		contentType string
+	}
+
+	tests := []struct {
+		name   string
+		want   want
+		body   string
+		method string
+	}{
+		{
+			name: "success",
+			want: want{
+				code:        http.StatusAccepted,
+				contentType: "application/json",
+			},
+			body:   body,
+			method: http.MethodDelete,
+		},
+		{
+			name: "body is empty",
+			want: want{
+				code:        http.StatusInternalServerError,
+				contentType: "",
+			},
+			method: http.MethodDelete,
+		},
+		{
+			name: "incorrect method",
+			want: want{
+				code:        http.StatusMethodNotAllowed,
+				response:    "",
+				contentType: "text/plain; charset=utf-8",
+			},
+			body:   body,
+			method: http.MethodPost,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			resp, _ := testRequest(t, ts, test.method, "/api/user/urls", strings.NewReader(test.body))
+			defer resp.Body.Close()
+			assert.Equal(t, test.want.code, resp.StatusCode)
+			assert.Equal(t, test.want.contentType, resp.Header.Get("Content-Type"))
+		})
+	}
+}

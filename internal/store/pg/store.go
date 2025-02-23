@@ -7,6 +7,8 @@ import (
 	"github.com/Nastez/shortener/internal/app/models"
 	"github.com/Nastez/shortener/internal/logger"
 	"github.com/Nastez/shortener/internal/store"
+	"github.com/lib/pq"
+	"log"
 )
 
 // Store реализует интерфейс store.Store и позволяет взаимодействовать с СУБД PostgreSQL
@@ -20,11 +22,11 @@ func NewStore(conn *sql.DB) *Store {
 	return &Store{conn: conn}
 }
 
-func (s Store) Get(ctx context.Context, id string) (string, error) {
+func (s Store) Get(ctx context.Context, id string) (string, bool, error) {
 	// запрашиваем originalURL по сгенерированному id
 	row := s.conn.QueryRowContext(ctx, `
         SELECT
-            original_url
+            original_url, is_deleted
         FROM urls 
         WHERE
             url_id = $1
@@ -34,12 +36,13 @@ func (s Store) Get(ctx context.Context, id string) (string, error) {
 
 	// считываем значения из записи БД
 	var originalURL string
-	err := row.Scan(&originalURL) // разбираем результат
+	var isDeleted bool
+	err := row.Scan(&originalURL, &isDeleted) // разбираем результат
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 
-	return originalURL, nil
+	return originalURL, isDeleted, nil
 }
 
 func (s Store) Save(ctx context.Context, urls store.URL, userID string) (string, error) {
@@ -161,4 +164,36 @@ func (s Store) GetURLs(ctx context.Context, userID string) (models.URLSResponseA
 	}
 
 	return urlsArr, nil
+}
+
+func (s Store) DeleteURLs(ctx context.Context, userID string, req []string) error {
+	updateQuery := `
+        UPDATE urls 
+        SET is_deleted = TRUE 
+        WHERE user_id = $1 AND url_id = ANY($2);
+    `
+	_, err := s.conn.ExecContext(ctx, updateQuery, userID, pq.Array(req))
+	if err != nil {
+		fmt.Println(err)
+		logger.Log.Error("set flag is_deleted error")
+		return err
+	}
+
+	batchSize := 100
+	for i := 0; i < len(req); i += batchSize {
+		end := i + batchSize
+		if end > len(req) {
+			end = len(req)
+		}
+		batch := req[i:end]
+		go func(batch []string) {
+			deleteQuery := `DELETE FROM urls WHERE user_id = $1 AND url_id = ANY($2);`
+			_, err = s.conn.ExecContext(ctx, deleteQuery, userID, pq.Array(batch))
+			if err != nil {
+				log.Println("delete urls:", err)
+			}
+		}(batch)
+	}
+
+	return nil
 }

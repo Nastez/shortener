@@ -19,10 +19,10 @@ func (m MemoryStorage) Save(ctx context.Context, url store.URL, userID string) (
 	return "", nil
 }
 
-func (m MemoryStorage) Get(ctx context.Context, id string) (string, error) {
+func (m MemoryStorage) Get(ctx context.Context, id string) (string, bool, error) {
 	var originalURL = m[id]
 
-	return originalURL, nil
+	return originalURL, false, nil
 }
 
 func (m MemoryStorage) SaveBatch(ctx context.Context, requestBatch models.PayloadBatch, shortURLBatch models.ResponseBodyBatch, userID string) error {
@@ -41,4 +41,8 @@ func (m MemoryStorage) SaveBatch(ctx context.Context, requestBatch models.Payloa
 
 func (m MemoryStorage) GetURLs(ctx context.Context, userID string) (models.URLSResponseArr, error) {
 	return nil, nil
+}
+
+func (m MemoryStorage) DeleteURLs(ctx context.Context, userID string, req []string) error {
+	return nil
 }
