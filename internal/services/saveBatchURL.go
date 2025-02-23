@@ -8,7 +8,7 @@ import (
 	"github.com/Nastez/shortener/internal/store"
 )
 
-func SaveBatchURL(ctx context.Context, requestBatch models.PayloadBatch, baseAddr string, storage store.Store) models.ResponseBodyBatch {
+func SaveBatchURL(ctx context.Context, requestBatch models.PayloadBatch, baseAddr string, storage store.Store, userID string) models.ResponseBodyBatch {
 	var responseBatch models.ResponseBodyBatch
 
 	for _, request := range requestBatch {
@@ -20,7 +20,7 @@ func SaveBatchURL(ctx context.Context, requestBatch models.PayloadBatch, baseAdd
 	}
 
 	if len(responseBatch) > 0 {
-		err := storage.SaveBatch(ctx, requestBatch, responseBatch)
+		err := storage.SaveBatch(ctx, requestBatch, responseBatch, userID)
 		if err != nil {
 			logger.Log.Info("can't save batch in store")
 			return nil

@@ -13,7 +13,7 @@ func New() *MemoryStorage {
 	return &MemoryStorage{}
 }
 
-func (m MemoryStorage) Save(ctx context.Context, url store.URL) (string, error) {
+func (m MemoryStorage) Save(ctx context.Context, url store.URL, userID string) (string, error) {
 	m[url.GeneratedID] = url.OriginalURL
 
 	return "", nil
@@ -25,7 +25,7 @@ func (m MemoryStorage) Get(ctx context.Context, id string) (string, error) {
 	return originalURL, nil
 }
 
-func (m MemoryStorage) SaveBatch(ctx context.Context, requestBatch models.PayloadBatch, shortURLBatch models.ResponseBodyBatch) error {
+func (m MemoryStorage) SaveBatch(ctx context.Context, requestBatch models.PayloadBatch, shortURLBatch models.ResponseBodyBatch, userID string) error {
 	var originalURL string
 
 	for _, req := range requestBatch {
@@ -37,4 +37,8 @@ func (m MemoryStorage) SaveBatch(ctx context.Context, requestBatch models.Payloa
 	}
 
 	return nil
+}
+
+func (m MemoryStorage) GetURLs(ctx context.Context, userID string) (models.URLSResponseArr, error) {
+	return nil, nil
 }

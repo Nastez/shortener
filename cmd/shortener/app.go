@@ -6,17 +6,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Nastez/shortener/internal/services"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"time"
 
-	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 
 	"github.com/Nastez/shortener/internal/app/models"
+	"github.com/Nastez/shortener/internal/auth"
 	"github.com/Nastez/shortener/internal/logger"
+	"github.com/Nastez/shortener/internal/services"
 	"github.com/Nastez/shortener/internal/store"
+	"github.com/go-chi/chi/v5"
 )
 
 // app инкапсулирует в себя все зависимости и логику приложения
@@ -81,6 +82,13 @@ func (a *app) ShortenerHandler() http.HandlerFunc {
 			return
 		}
 
+		userID, err := auth.WithAuth(w, req)
+		if err != nil {
+			logger.Log.Info("user is unauthorized")
+			w.WriteHeader(http.StatusUnauthorized)
+			http.Error(w, "user is unauthorized", http.StatusUnauthorized)
+		}
+
 		// десериализуем запрос в структуру модели
 		logger.Log.Info("decoding request")
 		var request models.Request
@@ -92,7 +100,7 @@ func (a *app) ShortenerHandler() http.HandlerFunc {
 		}
 
 		originalURL := request.URL
-		oldShortURL, shortURL, err := services.SaveURL(ctx, a.baseAddr, a.store, originalURL)
+		oldShortURL, shortURL, err := services.SaveURL(ctx, a.baseAddr, a.store, originalURL, userID)
 		// наличие неспецифичной ошибки
 		if err != nil && !errors.Is(err, store.ErrConflict) {
 			logger.Log.Debug("cannot save urls in the store", zap.Error(err))
@@ -187,6 +195,13 @@ func (a *app) PostHandler() http.HandlerFunc {
 			return
 		}
 
+		userID, err := auth.WithAuth(w, req)
+		if err != nil {
+			logger.Log.Info("user is unauthorized")
+			w.WriteHeader(http.StatusUnauthorized)
+			http.Error(w, "user is unauthorized", http.StatusUnauthorized)
+		}
+
 		body, err := io.ReadAll(req.Body)
 		if err != nil {
 			logger.Log.Info("can't read body")
@@ -204,7 +219,7 @@ func (a *app) PostHandler() http.HandlerFunc {
 		if a == nil {
 			return
 		}
-		oldShortURL, shortURL, err := services.SaveURL(ctx, a.baseAddr, a.store, originalURL)
+		oldShortURL, shortURL, err := services.SaveURL(ctx, a.baseAddr, a.store, originalURL, userID)
 
 		// наличие неспецифичной ошибки
 		if err != nil && !errors.Is(err, store.ErrConflict) {
@@ -241,6 +256,13 @@ func (a *app) PostBatch() http.HandlerFunc {
 			return
 		}
 
+		userID, err := auth.WithAuth(w, req)
+		if err != nil {
+			logger.Log.Info("user is unauthorized")
+			w.WriteHeader(http.StatusUnauthorized)
+			http.Error(w, "user is unauthorized", http.StatusUnauthorized)
+		}
+
 		// десериализуем запрос в структуру модели
 		logger.Log.Info("decoding request")
 		var requestBatch models.PayloadBatch
@@ -251,7 +273,7 @@ func (a *app) PostBatch() http.HandlerFunc {
 			return
 		}
 
-		responseBatch := services.SaveBatchURL(ctx, requestBatch, a.baseAddr, a.store)
+		responseBatch := services.SaveBatchURL(ctx, requestBatch, a.baseAddr, a.store, userID)
 
 		// устанавливаем заголовок Content-Type
 		w.Header().Set("Content-Type", "application/json")
@@ -268,54 +290,42 @@ func (a *app) PostBatch() http.HandlerFunc {
 	}
 }
 
-func (a *app) PostBatch() http.HandlerFunc {
+func (a *app) GetAuth() http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 
-		if req.Method != http.MethodPost {
+		if req.Method != http.MethodGet {
 			http.Error(w, "Only POST requests are allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
-		// десериализуем запрос в структуру модели
-		logger.Log.Info("decoding request")
-		var requestBatch models.PayloadBatch
-		dec := json.NewDecoder(req.Body)
-		if err := dec.Decode(&requestBatch); err != nil {
-			logger.Log.Info("cannot decode request JSON body", zap.Error(err))
+		userID, err := auth.WithAuth(w, req)
+		if err != nil {
+			logger.Log.Info("user is unauthorized")
+			w.WriteHeader(http.StatusUnauthorized)
+			http.Error(w, "user is unauthorized", http.StatusUnauthorized)
+		}
+
+		urls, err := a.store.GetURLs(ctx, userID)
+		if err != nil {
+			fmt.Println(err)
+			logger.Log.Info("cannot get urls", zap.Error(err))
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		var responseBatch models.ResponseBodyBatch
-
-		for _, request := range requestBatch {
-			var response = models.ResponseBatch{
-				CorrelationID: request.CorrelationID,
-				ShortURL:      a.baseAddr + "/" + request.CorrelationID,
-			}
-			responseBatch = append(responseBatch, response)
-		}
-
-		if len(responseBatch) > 0 {
-			err := a.store.SaveBatch(ctx, requestBatch, responseBatch)
-			if err != nil {
-				logger.Log.Info("can't save batch in store")
-				fmt.Println(err)
-				return
-			}
-		} else {
-			logger.Log.Info("responseBatch is empty")
+		if urls == nil {
+			logger.Log.Info("urls is empty")
+			w.WriteHeader(http.StatusNoContent)
+			return
 		}
 
 		// устанавливаем заголовок Content-Type
 		w.Header().Set("Content-Type", "application/json")
-		// устанавливаем код 201
-		w.WriteHeader(http.StatusCreated)
 
 		// сериализуем ответ сервера
 		enc := json.NewEncoder(w)
-		if err := enc.Encode(responseBatch); err != nil {
+		if err := enc.Encode(urls); err != nil {
 			logger.Log.Info("error encoding response", zap.Error(err))
 			return
 		}
