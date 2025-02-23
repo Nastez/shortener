@@ -12,13 +12,16 @@ var ErrConflict = errors.New("data conflict")
 
 // Store описывает абстрактное хранилище сообщений пользователей
 type Store interface {
-	Get(ctx context.Context, id string) (string, error)
-	Save(ctx context.Context, url URL) (string, error)
-	SaveBatch(ctx context.Context, requestBatch models.PayloadBatch, shortURLBatch models.ResponseBodyBatch) error
+	Get(ctx context.Context, id string) (string, bool, error)
+	Save(ctx context.Context, url URL, userID string) (string, error)
+	SaveBatch(ctx context.Context, requestBatch models.PayloadBatch, shortURLBatch models.ResponseBodyBatch, userID string) error
+	GetURLs(ctx context.Context, userID string) (models.URLSResponseArr, error)
+	DeleteURLs(ctx context.Context, userID string, req []string) error
 }
 
 type URL struct {
 	OriginalURL string
 	ShortURL    string
 	GeneratedID string
+	DeletedFlag bool
 }

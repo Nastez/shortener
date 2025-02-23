@@ -32,7 +32,9 @@ func (s StoreConfig) Bootstrap(ctx context.Context) error {
            id SERIAL PRIMARY KEY,
            original_url text UNIQUE,
            short_url text,
-           url_id text
+           url_id text,
+           user_id text,
+           is_deleted boolean NOT NULL DEFAULT FALSE
        )
     `)
 

@@ -7,6 +7,8 @@ import (
 	"github.com/Nastez/shortener/internal/app/models"
 	"github.com/Nastez/shortener/internal/logger"
 	"github.com/Nastez/shortener/internal/store"
+	"github.com/lib/pq"
+	"log"
 )
 
 // Store реализует интерфейс store.Store и позволяет взаимодействовать с СУБД PostgreSQL
@@ -20,11 +22,11 @@ func NewStore(conn *sql.DB) *Store {
 	return &Store{conn: conn}
 }
 
-func (s Store) Get(ctx context.Context, id string) (string, error) {
+func (s Store) Get(ctx context.Context, id string) (string, bool, error) {
 	// запрашиваем originalURL по сгенерированному id
 	row := s.conn.QueryRowContext(ctx, `
         SELECT
-            original_url
+            original_url, is_deleted
         FROM urls 
         WHERE
             url_id = $1
@@ -32,23 +34,24 @@ func (s Store) Get(ctx context.Context, id string) (string, error) {
 		id,
 	)
 
-	// считываем значения из записи БД в соответствующие поля структуры
+	// считываем значения из записи БД
 	var originalURL string
-	err := row.Scan(&originalURL) // разбираем результат
+	var isDeleted bool
+	err := row.Scan(&originalURL, &isDeleted) // разбираем результат
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 
-	return originalURL, nil
+	return originalURL, isDeleted, nil
 }
 
-func (s Store) Save(ctx context.Context, urls store.URL) (string, error) {
+func (s Store) Save(ctx context.Context, urls store.URL, userID string) (string, error) {
 	// добавляем новую запись с URLs в БД
 	res, err := s.conn.ExecContext(ctx, `
-        INSERT INTO urls (original_url, short_url, url_id)
-        VALUES ($1, $2, $3)
+        INSERT INTO urls (original_url, short_url, url_id, user_id)
+        VALUES ($1, $2, $3, $4)
         ON CONFLICT (original_url) DO NOTHING
-    `, urls.OriginalURL, urls.ShortURL, urls.GeneratedID)
+    `, urls.OriginalURL, urls.ShortURL, urls.GeneratedID, userID)
 	if err != nil {
 		return "", fmt.Errorf("insert error: %w", err)
 	}
@@ -84,7 +87,7 @@ func (s Store) Save(ctx context.Context, urls store.URL) (string, error) {
 	return "", err
 }
 
-func (s Store) SaveBatch(ctx context.Context, requestBatch models.PayloadBatch, shortURLBatch models.ResponseBodyBatch) error {
+func (s Store) SaveBatch(ctx context.Context, requestBatch models.PayloadBatch, shortURLBatch models.ResponseBodyBatch, userID string) error {
 	// запускаем транзакцию
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
@@ -95,7 +98,7 @@ func (s Store) SaveBatch(ctx context.Context, requestBatch models.PayloadBatch, 
 	defer tx.Rollback()
 
 	stmt, err := tx.PrepareContext(ctx,
-		"INSERT INTO urls (short_url, url_id) VALUES ($1, $2)")
+		"INSERT INTO urls (short_url, url_id, user_id) VALUES ($1, $2, $3)")
 	if err != nil {
 		return err
 	}
@@ -109,7 +112,7 @@ func (s Store) SaveBatch(ctx context.Context, requestBatch models.PayloadBatch, 
 	defer stmtOriginalURL.Close()
 
 	for _, b := range shortURLBatch {
-		_, err = stmt.ExecContext(ctx, b.ShortURL, b.CorrelationID)
+		_, err = stmt.ExecContext(ctx, b.ShortURL, b.CorrelationID, userID)
 		if err != nil {
 			return err
 		}
@@ -124,4 +127,73 @@ func (s Store) SaveBatch(ctx context.Context, requestBatch models.PayloadBatch, 
 
 	// коммитим транзакцию
 	return tx.Commit()
+}
+
+func (s Store) GetURLs(ctx context.Context, userID string) (models.URLSResponseArr, error) {
+	// запрашиваем список с originalURL и shortURL по userID
+	rows, err := s.conn.Query(`
+       SELECT
+           original_url, short_url
+       FROM urls
+       WHERE
+           user_id = $1
+   `,
+		userID,
+	)
+	if err != nil {
+		fmt.Println(err)
+		logger.Log.Error("get urls from pg store error")
+		return nil, err
+	}
+	defer rows.Close()
+
+	// считываем значения из записи БД в соответствующие поля структуры
+	var urls models.URLSResponse
+	var urlsArr []models.URLSResponse
+	for rows.Next() {
+		err = rows.Scan(&urls.OriginalURL, &urls.ShortURL) // разбираем результат
+		if err != nil {
+			fmt.Println(err)
+			logger.Log.Error("scan error")
+		}
+		urlsArr = append(urlsArr, urls)
+	}
+	if err = rows.Err(); err != nil {
+		logger.Log.Error("get rows with urls error")
+		return nil, err
+	}
+
+	return urlsArr, nil
+}
+
+func (s Store) DeleteURLs(ctx context.Context, userID string, req []string) error {
+	updateQuery := `
+        UPDATE urls 
+        SET is_deleted = TRUE 
+        WHERE user_id = $1 AND url_id = ANY($2);
+    `
+	_, err := s.conn.ExecContext(ctx, updateQuery, userID, pq.Array(req))
+	if err != nil {
+		fmt.Println(err)
+		logger.Log.Error("set flag is_deleted error")
+		return err
+	}
+
+	batchSize := 100
+	for i := 0; i < len(req); i += batchSize {
+		end := i + batchSize
+		if end > len(req) {
+			end = len(req)
+		}
+		batch := req[i:end]
+		go func(batch []string) {
+			deleteQuery := `DELETE FROM urls WHERE user_id = $1 AND url_id = ANY($2);`
+			_, err = s.conn.ExecContext(ctx, deleteQuery, userID, pq.Array(batch))
+			if err != nil {
+				log.Println("delete urls:", err)
+			}
+		}(batch)
+	}
+
+	return nil
 }

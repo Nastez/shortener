@@ -36,27 +36,28 @@ func (m *MockStore) EXPECT() *MockStoreMockRecorder {
 	return m.recorder
 }
 
-// Bootstrap mocks base method.
-func (m *MockStore) Bootstrap(ctx context.Context) error {
+// DeleteURLs mocks base method.
+func (m *MockStore) DeleteURLs(ctx context.Context, userID string, req []string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Bootstrap", ctx)
+	ret := m.ctrl.Call(m, "DeleteURLs", ctx, userID, req)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// Bootstrap indicates an expected call of Bootstrap.
-func (mr *MockStoreMockRecorder) Bootstrap(ctx interface{}) *gomock.Call {
+// DeleteURLs indicates an expected call of DeleteURLs.
+func (mr *MockStoreMockRecorder) DeleteURLs(ctx, userID, req interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Bootstrap", reflect.TypeOf((*MockStore)(nil).Bootstrap), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteURLs", reflect.TypeOf((*MockStore)(nil).DeleteURLs), ctx, userID, req)
 }
 
 // Get mocks base method.
-func (m *MockStore) Get(ctx context.Context, id string) (string, error) {
+func (m *MockStore) Get(ctx context.Context, id string) (string, bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", ctx, id)
 	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(bool)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // Get indicates an expected call of Get.
@@ -65,31 +66,46 @@ func (mr *MockStoreMockRecorder) Get(ctx, id interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockStore)(nil).Get), ctx, id)
 }
 
-// Save mocks base method.
-func (m *MockStore) Save(ctx context.Context, url store.URL) (string, error) {
+// GetURLs mocks base method.
+func (m *MockStore) GetURLs(ctx context.Context, userID string) (models.URLSResponseArr, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Save", ctx, url)
+	ret := m.ctrl.Call(m, "GetURLs", ctx, userID)
+	ret0, _ := ret[0].(models.URLSResponseArr)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetURLs indicates an expected call of GetURLs.
+func (mr *MockStoreMockRecorder) GetURLs(ctx, userID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetURLs", reflect.TypeOf((*MockStore)(nil).GetURLs), ctx, userID)
+}
+
+// Save mocks base method.
+func (m *MockStore) Save(ctx context.Context, url store.URL, userID string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Save", ctx, url, userID)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Save indicates an expected call of Save.
-func (mr *MockStoreMockRecorder) Save(ctx, url interface{}) *gomock.Call {
+func (mr *MockStoreMockRecorder) Save(ctx, url, userID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockStore)(nil).Save), ctx, url)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockStore)(nil).Save), ctx, url, userID)
 }
 
 // SaveBatch mocks base method.
-func (m *MockStore) SaveBatch(ctx context.Context, requestBatch models.PayloadBatch, shortURLBatch models.ResponseBodyBatch) error {
+func (m *MockStore) SaveBatch(ctx context.Context, requestBatch models.PayloadBatch, shortURLBatch models.ResponseBodyBatch, userID string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SaveBatch", ctx, requestBatch, shortURLBatch)
+	ret := m.ctrl.Call(m, "SaveBatch", ctx, requestBatch, shortURLBatch, userID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // SaveBatch indicates an expected call of SaveBatch.
-func (mr *MockStoreMockRecorder) SaveBatch(ctx, requestBatch, shortURLBatch interface{}) *gomock.Call {
+func (mr *MockStoreMockRecorder) SaveBatch(ctx, requestBatch, shortURLBatch, userID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveBatch", reflect.TypeOf((*MockStore)(nil).SaveBatch), ctx, requestBatch, shortURLBatch)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveBatch", reflect.TypeOf((*MockStore)(nil).SaveBatch), ctx, requestBatch, shortURLBatch, userID)
 }
